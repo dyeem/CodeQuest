@@ -12,11 +12,13 @@ export default function Navbar() {
         <nav className="absolute w-full bg-transparent text-black font-semibold font-rajdhani">
             <div className="flex items-center h-14 px-6">
 
-                <div className="flex items-center">
-                    <span className="text-4xl font-bold">CodeQuest</span>
-                </div>
+                <Link
+                    className="text-4xl font-bold" 
+                    to="/admin/dashboard">
+                    JS CodeQuest
+                </Link>
 
-                <div className="ml-auto flex items-center space-x-6 text-xl">
+                <div className="ml-auto flex items-center space-x-6 text-xl font-semibold">
 
                     <Link 
                         to="/admin/dashboard"
