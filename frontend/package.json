@@ -10,6 +10,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@headlessui/react": "^2.2.9",
+    "@monaco-editor/react": "^4.7.0",
     "@tailwindcss/vite": "^4.1.17",
     "echarts": "^6.0.0",
     "echarts-for-react": "^3.0.5",

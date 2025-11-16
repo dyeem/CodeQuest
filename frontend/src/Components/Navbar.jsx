@@ -40,14 +40,6 @@ export default function Navbar() {
                     >
                         Assignments & Challenges
                     </Link>
-
-                    <Link 
-                        to="/admin/system-and-settings"
-                        className={`transition ${isActive("/admin/system-and-settings")}`}
-                    >
-                        System & Settings
-                    </Link>
-
                 </div>
             </div>
         </nav>

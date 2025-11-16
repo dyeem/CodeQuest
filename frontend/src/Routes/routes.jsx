@@ -5,7 +5,6 @@ import Dashboard from "../Pages/Dashboard";
 import Login from "../Auth/Login";
 import StudentManagement from "../Pages/StudentManagement";
 import AssignmentandChallenges from "../Pages/AssignmentandChallenges";
-import SystemandSettings from "../Pages/SystemandSettings";
 
 const Routes = () => {
   const routes = useRoutes([
@@ -23,7 +22,6 @@ const Routes = () => {
                 { path: "dashboard", element: <Dashboard /> },
                 { path: "student-management", element: <StudentManagement /> },
                 { path: "assignment-and-challenges", element: <AssignmentandChallenges />},
-                { path: "system-and-settings", element: <SystemandSettings />}
               ],
             },
           ],

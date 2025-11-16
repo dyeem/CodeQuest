@@ -7,6 +7,7 @@ import CountUp from "../Components/animation/countup";
 import BarGraph from "../Components/Charts/BarGraph";
 import AreaChart from "../Components/Charts/AreaChart";
 import PieChart from "../Components/Charts/PieGraph";
+import Banner from "../Components/Banner";
 
 export default function Dashboard() {
     useEffect(() => {
@@ -14,12 +15,9 @@ export default function Dashboard() {
     }, []);
     return (
         <>
-          <div className="font-rajdhani min-h-screen w-full flex tracking-wide justify-center "style={{ backgroundImage: `url(${bg})`, backgroundSize: "cover", backgroundPosition: "center",}}>
+          <div className="font-rajdhani min-h-screen w-full flex tracking-wide justify-center bg-fixed" style={{ backgroundImage: `url(${bg})`, backgroundSize: "cover", backgroundPosition: "center",}}>
                 <div className="mt-14 w-full">
-                    <div className="w-full font-rajdhani mb-6 text-center text-white bg-[#212832] py-9">
-                        <p className="font-semibold text-5xl mb-3">Welcome to the Teacher/Admin Dashboard</p>
-                        <p className="text-xl italic">Manage Student, Assignments, and report effortlessly</p>
-                    </div>
+                    <Banner/>
                     <div className="mx-80">
                         <div className="">
                             <div className="flex items-center justify-center bg-white mb-10">
