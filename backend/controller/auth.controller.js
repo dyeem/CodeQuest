@@ -1,68 +1,30 @@
-import { db } from "../config/firebaseAdmin.js";
-import { comparePassword, generateToken } from "../utils/auth.js";
+import { auth, db } from "../config/firebaseAdmin.js";
 
-export const adminLogin = async (req, res) => {
-  const { email, password } = req.body;
+// Verify Firebase ID token sent from frontend
+export const verifyFirebaseToken = async (req, res) => {
+  const authHeader = req.headers.authorization;
 
-  if (!email || !password) {
-    return res.status(400).json({ message: "Email and password required" });
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return res.status(401).json({ message: "No token provided" });
   }
 
+  const idToken = authHeader.split(" ")[1];
+
   try {
-    const adminQuery = await db
-        .collection("admins")
-        .where("email", "==", email)
-        .limit(1)
-        .get();
+    // Verify token with Firebase
+    const decodedToken = await auth.verifyIdToken(idToken);
+    const email = decodedToken.email;
 
-    if (adminQuery.empty) {
-        return res.status(404).json({ message: "Admin not found" });
-    }
-
-    const adminData = adminQuery.docs[0].data();
-
-    const match = await comparePassword(password, adminData.password);
-    if (!match) {
-      return res.status(401).json({ message: "Wrong password" });
-    }
-
-    const token = generateToken(email);
-
-    res.cookie("jwt", token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production", 
-      sameSite: "Strict", 
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-    });
-
-    return res.json({ message: "Login successful" });
-  } catch (err) {
-    console.error(err);
-    return res.status(500).json({ message: "Server error" });
-  }
-};
-
-export const getCurrentAdmin = async (req, res) => {
-  try {
-    const email = req.admin.email;
-
-    const adminQuery = await db
-      .collection("admins")
-      .where("email", "==", email)
-      .limit(1)
-      .get();
-
-    if (adminQuery.empty) {
+    // Optional: Fetch admin profile from Firestore
+    const adminDoc = await db.collection("admins").doc(email).get();
+    if (!adminDoc.exists) {
       return res.status(404).json({ message: "Admin not found" });
     }
 
-    const adminData = adminQuery.docs[0].data();
-
-    delete adminData.password;
-
-    return res.json({ admin: adminData });
+    req.admin = { email, ...adminDoc.data() };
+    res.json({ admin: req.admin });
   } catch (err) {
     console.error(err);
-    return res.status(500).json({ message: "Server error" });
+    res.status(401).json({ message: "Invalid or expired token" });
   }
 };

@@ -1,34 +1,19 @@
+import { onAuthStateChanged } from "firebase/auth";
 import { useState, useEffect } from "react";
+import { auth } from "../config/firebase.config.js";
 
-export default function useCurrentAdmin() {
+export default function useAuth() {
   const [admin, setAdmin] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
 
   useEffect(() => {
-    const fetchAdmin = async () => {
-      try {
-        const res = await fetch("http://localhost:5000/api/admin/me", {
-          method: "GET",
-          credentials: "include", 
-        });
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setAdmin(user);
+      setLoading(false);
+    });
 
-        if (!res.ok) {
-          throw new Error("Not authenticated");
-        }
-
-        const data = await res.json();
-        setAdmin(data.admin);
-      } catch (err) {
-        console.error(err);
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchAdmin();
+    return () => unsubscribe();
   }, []);
 
-  return { admin, loading, error };
+  return { admin, loading };
 }

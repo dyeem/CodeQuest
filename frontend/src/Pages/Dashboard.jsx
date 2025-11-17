@@ -1,8 +1,10 @@
 import { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+
 import { User, Target, BookCheck, Star } from "lucide-react";
 import bg from "../assets/dashboardbg.png";
+
 import CountUp from "../Components/animation/countup";
-import useCurrentAdmin from "../hooks/auth";
 import Loader from "../Components/Loader";
 
 // charts
@@ -12,12 +14,23 @@ import PieChart from "../Components/Charts/PieGraph";
 import Banner from "../Components/Banner";
 import LineChart from "../Components/Charts/LineChart";
 
+// auth hook
+import useCurrentAdmin from "../hooks/auth";
+
+
 export default function Dashboard() {
-    const { admin, loading, error } = useCurrentAdmin();
+    const { admin, loading } = useCurrentAdmin();
+    const navigate = useNavigate();
 
     useEffect(() => {
         document.title = "Dashboard | CodeQuest";
     }, []);
+
+    useEffect(() => {
+        if (!loading && !admin) {
+        navigate("/admin/auth/login");
+        }
+    }, [admin, loading, navigate]);
 
     if (loading) return <Loader />;
 

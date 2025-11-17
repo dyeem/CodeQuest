@@ -1,9 +1,9 @@
 import express from "express";
-import { adminLogin, getCurrentAdmin } from "../controller/auth.controller.js";
-import { verifyToken } from "../utils/auth.js";
+import { verifyFirebaseToken } from "../controller/auth.controller.js";
 
 const router = express.Router();
 
-router.post("/login", adminLogin);
-router.get("/me", verifyToken, getCurrentAdmin);
+// Verify token sent from frontend and return admin info
+router.post("/auth", verifyFirebaseToken);
+
 export default router;
