@@ -1,8 +1,8 @@
-import { useState } from 'react';
 import { Sparkles } from 'lucide-react';
 
-export default function Coding() {
-    const [codingChallenge, setCodingChallenge] = useState("");
+export default function Coding({ data, setData }) {
+    // data: { instruction: string }
+    
     return (
         <div className="w-full flex flex-col items-center my-6 animate-fade-in">
             <p className="text-3xl font-bold mb-6 text-[#d4af37] tracking-[0.2em] uppercase underline underline-offset-8 decoration-[#44403c]">
@@ -21,14 +21,10 @@ export default function Coding() {
                         rows={4}
                         placeholder="e.g., Create a function that adds two numbers..."
                         className="w-full bg-[#0c0a09] border border-[#44403c] px-4 py-3 rounded text-[#e7e5e4] focus:ring-1 focus:ring-[#d4af37] focus:outline-none transition-all placeholder-[#44403c] font-serif italic"
-                        value={codingChallenge}
-                        onChange={(e) => setCodingChallenge(e.target.value)}
+                        value={data.instruction}
+                        onChange={(e) => setData({ ...data, instruction: e.target.value })}
                     />
                 </div>
-
-                <button className="mt-4 px-6 py-4 bg-[#2c241b] text-[#d4af37] font-bold uppercase tracking-[0.2em] rounded border border-[#d4af37]/50 hover:bg-[#d4af37] hover:text-[#1c1917] transition-all duration-300 shadow-lg shadow-[#000]/40">
-                    Create Challenge
-                </button>
             </div>
         </div>
     )

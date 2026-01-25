@@ -20,7 +20,6 @@ export default function Login() {
     document.title = "Login - JS CodeQuest";
   }, []);
 
-  // Redirect if already logged in
   useEffect(() => {
     if (!loading && user) {
       navigate("/dashboard");
@@ -32,10 +31,8 @@ export default function Login() {
     setError("");
 
     try {
-      // 1️⃣ Login with Firebase Auth
       const result = await signInWithEmailAndPassword(auth, email, password);
 
-      // ✅ Login successful
       navigate("/dashboard");
     } catch (err) {
       console.error(err);

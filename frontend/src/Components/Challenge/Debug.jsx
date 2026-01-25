@@ -2,9 +2,8 @@ import { useState } from "react";
 import Editor from "@monaco-editor/react";
 import { Play, Terminal, Info } from "lucide-react";
 
-export default function Debug() {
-  const [instruction, setInstruction] = useState("");
-  const [code, setCode] = useState("// Write your JavaScript code here\n\nfunction solve() {\n  console.log('Running test...');\n  return 42;\n}");
+export default function Debug({ data, setData }) {
+  // data: { instruction: string, code: string }
   const [output, setOutput] = useState("");
 
   const runCode = () => {
@@ -14,7 +13,7 @@ export default function Debug() {
     };
 
     try {
-      const func = new Function("console", code + "\nreturn solve();");
+      const func = new Function("console", data.code + "\nreturn solve();");
       const result = func(customConsole);
 
       let finalOutput = "";
@@ -38,8 +37,8 @@ export default function Debug() {
             rows={3}
             placeholder="Describe what needs to be fixed or tested in the code below..."
             className="w-full bg-[#0c0a09] border border-[#44403c] px-4 py-3 rounded text-[#e7e5e4] focus:ring-1 focus:ring-[#d4af37] focus:outline-none transition-all placeholder-[#44403c] font-serif italic"
-            value={instruction}
-            onChange={(e) => setInstruction(e.target.value)}
+            value={data.instruction}
+            onChange={(e) => setData({ ...data, instruction: e.target.value })}
         />
       </div>
 
@@ -49,8 +48,8 @@ export default function Debug() {
                 height="400px"
                 defaultLanguage="javascript"
                 theme="vs-dark"
-                value={code}
-                onChange={(val) => setCode(val)}
+                value={data.code}
+                onChange={(val) => setData({ ...data, code: val })}
                 options={{
                     fontSize: 14,
                     fontFamily: 'monospace',

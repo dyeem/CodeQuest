@@ -30,6 +30,13 @@ export default function EnumForm({ enumQuestions, setEnumQuestions }) {
         setAnswers([""]);
     };
 
+    const removeQuestion = (index) => {
+        if (confirm("Remove this question?")) {
+            const updated = enumQuestions.filter((_, i) => i !== index);
+            setEnumQuestions(updated);
+        }
+    };
+
     return (
         <div className="bg-[#1c1917] p-8 rounded-sm w-full max-w-7xl shadow-2xl flex flex-col lg:flex-row gap-10 border-2 border-[#44403c] relative overflow-hidden">
             
@@ -50,9 +57,17 @@ export default function EnumForm({ enumQuestions, setEnumQuestions }) {
                             {enumQuestions.map((q, idx) => (
                                 <div
                                     key={idx}
-                                    className="p-4 rounded-sm bg-[#0c0a09] border border-[#292524] shadow-inner"
+                                    className="p-4 rounded-sm bg-[#0c0a09] border border-[#292524] shadow-inner group relative"
                                 >
-                                    <p className="font-bold text-[#e7e5e4] mb-3 flex gap-3 italic">
+                                    <button 
+                                        onClick={() => removeQuestion(idx)}
+                                        className="absolute top-2 right-2 text-[#7f1d1d] hover:text-[#ef4444] opacity-0 group-hover:opacity-100 transition-all p-1"
+                                        title="Remove Question"
+                                    >
+                                        <Trash2 size={16} />
+                                    </button>
+
+                                    <p className="font-bold text-[#e7e5e4] mb-3 flex gap-3 italic pr-6">
                                         <span className="text-[#d4af37]">Q{idx + 1}.</span>
                                         {q.text}
                                     </p>
@@ -64,11 +79,6 @@ export default function EnumForm({ enumQuestions, setEnumQuestions }) {
                                 </div>
                             ))}
                         </div>
-
-                        <button className="flex items-center justify-center gap-2 mt-6 px-6 py-4 bg-[#2c241b] text-[#d4af37] font-bold uppercase tracking-[0.2em] rounded border border-[#d4af37]/50 hover:bg-[#d4af37] hover:text-[#1c1917] transition-all duration-300 w-full shadow-lg">
-                            <Send size={18} />
-                            Save All Questions
-                        </button>
                     </div>
                 ) : (
                     <div className="h-64 flex flex-col items-center justify-center text-[#57534e] italic bg-[#0c0a09] rounded border border-dashed border-[#292524]">

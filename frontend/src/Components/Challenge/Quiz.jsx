@@ -1,16 +1,11 @@
-import { useState } from 'react';
 import MCQForm from '../Quizzes/MCQForm.jsx';
 import TrueFalseForm from '../Quizzes/TrueFalseForm.jsx';
 import EnumForm from '../Quizzes/EnumForm.jsx';
 import ParagraphForm from '../Quizzes/ParagraphForm.jsx';
 import { BookOpen, CheckSquare, ListOrdered, AlignLeft } from 'lucide-react';
 
-export default function Quiz() {
-    const [quizSubtype, setQuizSubtype] = useState("");
-    const [ mcQuestions, setMCQuestions ] = useState([]);
-    const [ truefalseQuestions, setTrueFalseQuestions ] = useState([]);
-    const [ enumQuestions, setEnumQuestions ] = useState([]);
-    const [ paragraphQuestions, setParagraphQuestions ] = useState([]);
+export default function Quiz({ data, setData, readOnly = false }) {
+    // data: { subtype, mcQuestions, truefalseQuestions, enumQuestions, paragraphQuestions }
     
     return (
         <div className="w-full flex flex-col items-center my-6 animate-fade-in">
@@ -19,43 +14,69 @@ export default function Quiz() {
             </p>
 
             {/* Quiz Subtype Selector */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10 w-full max-w-4xl px-4">
+            <div className={`grid grid-cols-2 md:grid-cols-4 gap-4 mb-10 w-full max-w-4xl px-4 ${readOnly ? "opacity-50 pointer-events-none grayscale" : ""}`}>
                 <SubTypeButton 
                     id="mcq" 
                     label="Multiple Choice" 
                     icon={<BookOpen size={20}/>} 
-                    selected={quizSubtype === "mcq"}
-                    onClick={() => setQuizSubtype("mcq")}
+                    selected={data.subtype === "mcq"}
+                    onClick={() => setData({ ...data, subtype: "mcq" })}
                 />
                 <SubTypeButton 
                     id="tf" 
                     label="True or False" 
                     icon={<CheckSquare size={20}/>} 
-                    selected={quizSubtype === "tf"}
-                    onClick={() => setQuizSubtype("tf")}
+                    selected={data.subtype === "tf"}
+                    onClick={() => setData({ ...data, subtype: "tf" })}
                 />
                 <SubTypeButton 
                     id="enum" 
                     label="Enumeration" 
                     icon={<ListOrdered size={20}/>} 
-                    selected={quizSubtype === "enum"}
-                    onClick={() => setQuizSubtype("enum")}
+                    selected={data.subtype === "enum"}
+                    onClick={() => setData({ ...data, subtype: "enum" })}
                 />
                 <SubTypeButton 
                     id="paragraph" 
                     label="Paragraph" 
                     icon={<AlignLeft size={20}/>} 
-                    selected={quizSubtype === "paragraph"}
-                    onClick={() => setQuizSubtype("paragraph")}
+                    selected={data.subtype === "paragraph"}
+                    onClick={() => setData({ ...data, subtype: "paragraph" })}
                 />
             </div>
 
+            {readOnly && (
+                <p className="text-[#ef4444] text-xs font-bold uppercase tracking-widest mb-6 -mt-6">
+                    Quiz type cannot be changed while editing.
+                </p>
+            )}
+
             {/* Render chosen quiz type */}
             <div className="w-full flex justify-center">
-                {quizSubtype === "mcq" && <MCQForm mcQuestions={mcQuestions} setMCQuestions={setMCQuestions} />}
-                {quizSubtype === "tf" && <TrueFalseForm truefalseQuestions={truefalseQuestions} setTrueFalseQuestions={setTrueFalseQuestions} />}
-                {quizSubtype === "enum" && <EnumForm enumQuestions={enumQuestions} setEnumQuestions={setEnumQuestions} />}
-                {quizSubtype === "paragraph" && <ParagraphForm paragraphQuestions={paragraphQuestions} setParagraphQuestions={setParagraphQuestions}/>}
+                {data.subtype === "mcq" && (
+                    <MCQForm 
+                        mcQuestions={data.mcQuestions} 
+                        setMCQuestions={(qs) => setData({ ...data, mcQuestions: qs })} 
+                    />
+                )}
+                {data.subtype === "tf" && (
+                    <TrueFalseForm 
+                        truefalseQuestions={data.truefalseQuestions} 
+                        setTrueFalseQuestions={(qs) => setData({ ...data, truefalseQuestions: qs })} 
+                    />
+                )}
+                {data.subtype === "enum" && (
+                    <EnumForm 
+                        enumQuestions={data.enumQuestions} 
+                        setEnumQuestions={(qs) => setData({ ...data, enumQuestions: qs })} 
+                    />
+                )}
+                {data.subtype === "paragraph" && (
+                    <ParagraphForm 
+                        paragraphQuestions={data.paragraphQuestions} 
+                        setParagraphQuestions={(qs) => setData({ ...data, paragraphQuestions: qs })}
+                    />
+                )}
             </div>
         </div>
     )
