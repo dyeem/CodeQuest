@@ -36,7 +36,7 @@ export default function Login() {
       const result = await signInWithEmailAndPassword(auth, email, password);
 
       // ✅ Login successful
-      navigate("/admin/dashboard");
+      navigate("/dashboard");
     } catch (err) {
       console.error(err);
       setError("Invalid email or password.");
