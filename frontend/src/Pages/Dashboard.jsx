@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { User, Target, BookCheck, Star, ScrollText, FileText } from "lucide-react";
 import bg from "../assets/dashboardbg.png"; 
 
-import CountUp from "../Components/animation/countup";
+import CountUp from "../Components/animation/CountUp";
 import Loader from "../Components/Loader";
 
 // charts
