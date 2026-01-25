@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { PlusCircle, Send } from "lucide-react";
 
 export default function TrueFalseForm({
     truefalseQuestions,
@@ -21,74 +22,92 @@ export default function TrueFalseForm({
     };
 
     return (
-        <div className="bg-white/80 p-6 rounded-xl w-full max-w-7xl shadow flex gap-6 border border-gray-300/40">
-            {/* LEFT SIDE – ADDED QUESTIONS */}
-            <div className="w-1/2 pr-4 border-r border-gray-400/40 max-h-[450px] overflow-y-auto">
+        <div className="bg-[#1c1917] p-8 rounded-sm w-full max-w-7xl shadow-2xl flex flex-col lg:flex-row gap-10 border-2 border-[#44403c] relative overflow-hidden">
+             {/* LEFT SIDE – ADDED QUESTIONS */}
+             <div className="w-full lg:w-1/2 pr-0 lg:pr-8 border-b lg:border-b-0 lg:border-r border-[#44403c] pb-8 lg:pb-0">
+                <div className="flex items-center justify-between mb-6">
+                    <p className="text-2xl font-bold text-[#d4af37] tracking-widest uppercase italic">
+                        True or False Questions
+                    </p>
+                    <span className="bg-[#0c0a09] px-3 py-1 text-xs text-[#a8a29e] border border-[#292524] rounded-full">
+                        {truefalseQuestions.length} Total
+                    </span>
+                </div>
+
                 {truefalseQuestions.length > 0 ? (
-                    <>
-                        <p className="text-2xl font-bold mb-4">
-                            Added True/False Questions
-                        </p>
-                        <div className="max-h-[450px] overflow-y-auto pr-3 mb-2 grid grid-cols-2 gap-4">
+                    <div className="flex flex-col gap-6">
+                        <div className="max-h-[450px] overflow-y-auto pr-3 grid grid-cols-1 gap-4 custom-scrollbar">
                             {truefalseQuestions.map((q, idx) => (
                                 <div
                                     key={idx}
-                                    className="p-3 rounded-lg bg-gray-100/90 shadow-sm flex flex-col"
+                                    className="p-4 rounded-sm bg-[#0c0a09] border border-[#292524] shadow-inner"
                                 >
-                                    <p className="font-semibold mb-2 break-words">
-                                        Q{idx + 1}: {q.text}
+                                    <p className="font-bold text-[#e7e5e4] mb-3 leading-relaxed flex gap-3 italic">
+                                        <span className="text-[#d4af37]">Q{idx + 1}.</span>
+                                        "{q.text}"
                                     </p>
                                     <p
-                                        className={`font-bold ${
+                                        className={`text-xs font-bold uppercase tracking-widest ${
                                             q.correctAnswer === "True"
-                                                ? "text-green-700"
-                                                : "text-red-700"
+                                                ? "text-[#2dd4bf]"
+                                                : "text-[#ef4444]"
                                         }`}
                                     >
-                                        Correct Answer: {q.correctAnswer}
+                                        Answer: {q.correctAnswer}
                                     </p>
                                 </div>
                             ))}
                         </div>
-                        <button className="mt-6 px-4 py-2 bg-[#212832] text-white rounded-lg hover:bg-[#2b333f] w-full">
-                            Submit All Questions
+                        <button className="flex items-center justify-center gap-2 mt-6 px-6 py-4 bg-[#2c241b] text-[#d4af37] font-bold uppercase tracking-[0.2em] rounded border border-[#d4af37]/50 hover:bg-[#d4af37] hover:text-[#1c1917] transition-all duration-300 w-full shadow-lg">
+                            <Send size={18} />
+                            Save All Questions
                         </button>
-                    </>
+                    </div>
                 ) : (
-                    <div className="h-full flex items-center justify-center text-gray-600 italic">
-                        No questions added yet.
+                    <div className="h-64 flex flex-col items-center justify-center text-[#57534e] italic bg-[#0c0a09] rounded border border-dashed border-[#292524]">
+                        <p>No questions added yet.</p>
                     </div>
                 )}
             </div>
 
             {/* RIGHT SIDE – ADD NEW QUESTION */}
-            <div className="w-1/2">
-                <p className="text-2xl font-semibold mb-4">Add New Question</p>
+            <div className="w-full lg:w-1/2 flex flex-col gap-6">
+                <p className="text-2xl font-bold text-[#e7e5e4] tracking-widest uppercase">
+                    New Question
+                </p>
 
-                <label className="font-medium mb-1">Statement:</label>
-                <input
-                    className="w-full border px-3 py-2 rounded mb-4 focus:ring-2 focus:ring-[#212832]"
-                    placeholder="Enter statement"
-                    value={questionText}
-                    onChange={(e) => setQuestionText(e.target.value)}
-                />
+                <div className="space-y-6">
+                    <div className="flex flex-col gap-2">
+                        <label className="text-xs font-bold text-[#a8a29e] uppercase tracking-widest">Question Statement</label>
+                        <textarea
+                            className="w-full bg-[#0c0a09] border border-[#44403c] px-4 py-3 rounded text-[#e7e5e4] focus:border-[#d4af37] focus:outline-none transition-all placeholder-[#44403c] italic"
+                            rows={4}
+                            placeholder="Enter the statement here..."
+                            value={questionText}
+                            onChange={(e) => setQuestionText(e.target.value)}
+                        />
+                    </div>
 
-                <label className="font-medium mb-1">Correct Answer:</label>
-                <select
-                    value={correct}
-                    onChange={(e) => setCorrect(e.target.value)}
-                    className="w-full border px-3 py-2 rounded mb-4 focus:ring-2 focus:ring-[#212832]"
-                >
-                    <option>True</option>
-                    <option>False</option>
-                </select>
+                    <div className="flex flex-col gap-2">
+                        <label className="text-xs font-bold text-[#a8a29e] uppercase tracking-widest">Correct Answer</label>
+                        <select
+                            value={correct}
+                            onChange={(e) => setCorrect(e.target.value)}
+                            className="w-full bg-[#0c0a09] border border-[#44403c] px-4 py-3 rounded text-[#d4af37] font-bold tracking-[0.2em] focus:border-[#d4af37] focus:outline-none appearance-none cursor-pointer"
+                        >
+                            <option value="True">True</option>
+                            <option value="False">False</option>
+                        </select>
+                    </div>
 
-                <button
-                    onClick={addQuestion}
-                    className="bg-[#212832] text-white px-4 py-2 rounded-lg w-full hover:bg-[#161c22]"
-                >
-                    Add Question
-                </button>
+                    <button
+                        onClick={addQuestion}
+                        className="flex items-center justify-center gap-2 mt-4 px-6 py-4 bg-[#0c0a09] text-[#a8a29e] font-bold uppercase tracking-[0.2em] rounded border border-[#292524] hover:border-[#d4af37] hover:text-[#d4af37] transition-all duration-300 w-full"
+                    >
+                        <PlusCircle size={18} />
+                        Add Question
+                    </button>
+                </div>
             </div>
         </div>
     );

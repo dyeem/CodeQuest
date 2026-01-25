@@ -1,56 +1,51 @@
 import React from "react";
 import ReactECharts from "echarts-for-react";
 
-export default function LineChart() {
+export default function LineChart({ data = { xAxis: [], series: [] } }) {
   const option = {
+    backgroundColor: 'transparent',
+    color: ['#d4af37', '#a855f7', '#2dd4bf'],
     title: {
-      text: "Section Stats Over Months",
+      text: "Progress Trends",
       left: "center",
-      textStyle: { fontSize: 18, fontWeight: 500 },
+      textStyle: { fontSize: 18, fontWeight: 500, color: '#e7e5e4', fontFamily: 'serif' },
     },
     tooltip: {
       trigger: "axis",
+      backgroundColor: '#1c1917',
+      borderColor: '#44403c',
+      textStyle: { color: '#e7e5e4' }
     },
     legend: {
       top: 30,
-      data: ["Section A", "Section B", "Section C"],
+      textStyle: { color: '#a8a29e' }
     },
     grid: {
       left: "3%",
       right: "4%",
       bottom: "3%",
       containLabel: true,
+      borderColor: '#44403c'
     },
     xAxis: {
       type: "category",
       boundaryGap: false,
-      data: ["Jan", "Feb", "Mar", "Apr", "May", "Jun"],
+      data: data.xAxis.length > 0 ? data.xAxis : ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
+      axisLabel: { color: '#a8a29e' },
+      axisLine: { lineStyle: { color: '#44403c' } }
     },
     yAxis: {
       type: "value",
+      axisLabel: { color: '#a8a29e' },
+      splitLine: { lineStyle: { color: '#292524' } }
     },
-    series: [
+    series: data.series.length > 0 ? data.series : [
       {
-        name: "Section A",
+        name: "Average Score",
         type: "line",
-        stack: "Total",
-        data: [120, 132, 101, 134, 90, 230],
+        data: [0, 0, 0, 0, 0, 0],
         smooth: true,
-      },
-      {
-        name: "Section B",
-        type: "line",
-        stack: "Total",
-        data: [220, 182, 191, 234, 290, 330],
-        smooth: true,
-      },
-      {
-        name: "Section C",
-        type: "line",
-        stack: "Total",
-        data: [150, 232, 201, 154, 190, 330],
-        smooth: true,
-      },
+      }
     ],
   };
 

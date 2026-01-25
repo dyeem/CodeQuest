@@ -1,0 +1,35 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // --- USER RULES ---
+    match /users/{userId} {
+      // Allow ANY logged-in user to READ (needed for Leaderboards)
+      allow read: if request.auth != null;
+      
+      // Allow ONLY the owner to WRITE/EDIT their own data
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // --- MULTIPLAYER ARENA RULES ---
+    // Allow logged-in users to find, create, and join lobbies
+    match /matchmaking_queue/{matchId} {
+      allow read, create: if request.auth != null;
+      allow update: if request.auth != null; 
+      allow delete: if request.auth != null; // For cancelling empty lobbies
+    }
+
+    // --- ADMIN RULES ---
+    // Allow logged-in users (admins/teachers) to manage the admin records
+    match /admins/{adminId} {
+      allow read, write: if request.auth != null;
+    }
+
+    // --- TASK/ASSIGNMENT RULES ---
+    // Allow logged-in users (admins/teachers) to manage assignments
+    match /task/{taskId} {
+      allow read, write: if request.auth != null;
+    }
+    
+  }
+}
