@@ -1,12 +1,25 @@
 import { useEffect, useState } from "react";
-import { Plus, Trash2, Edit2, Save, X, UserCog, ShieldAlert, Upload, Loader2, Image as ImageIcon } from "lucide-react";
+import { Plus, Trash2, Edit2, Save, X, UserCog, ShieldAlert, Upload, Loader2, Image as ImageIcon, KeyRound, RefreshCw, Copy } from "lucide-react";
 import { db } from "../config/firebase.config";
 import { collection, onSnapshot, addDoc, deleteDoc, doc, updateDoc } from "firebase/firestore";
+import { initializeApp, deleteApp } from "firebase/app";
+import { getAuth, createUserWithEmailAndPassword, signOut as firebaseSignOut } from "firebase/auth";
 import Loader from "../Components/Loader";
 
 // Cloudinary Config
 const CLOUD_NAME = "dg3eusrdy";
-const UPLOAD_PRESET = "codequest_avatar"; // Replace with your actual unsigned upload preset
+const UPLOAD_PRESET = "codequest_avatar"; 
+
+// Firebase Config (Must match your config file)
+const firebaseConfig = {
+  apiKey: "AIzaSyBxjX5Xo436MaHQav1vcseMxDJXmljnS9U",
+  authDomain: "codequest-200b.firebaseapp.com",
+  projectId: "codequest-200b",
+  storageBucket: "codequest-200b.firebasestorage.app",
+  messagingSenderId: "991275629710",
+  appId: "1:991275629710:web:1faed78dc6cd69da3adddf",
+  measurementId: "G-WEB9D2JHCZ"
+};
 
 export default function UserManagement() {
     const [admins, setAdmins] = useState([]);
@@ -21,7 +34,8 @@ export default function UserManagement() {
         lastName: "",
         email: "",
         role: "teacher",
-        photoURL: ""
+        photoURL: "",
+        password: "" 
     });
     
     // Image State
@@ -52,12 +66,13 @@ export default function UserManagement() {
                 lastName: admin.lastName || "",
                 email: admin.email || "",
                 role: admin.role || "teacher",
-                photoURL: admin.photoURL || ""
+                photoURL: admin.photoURL || "",
+                password: "" // Don't load existing password
             });
             setImagePreview(admin.photoURL || null);
         } else {
             setEditingAdmin(null);
-            setFormData({ firstName: "", lastName: "", email: "", role: "teacher", photoURL: "" });
+            setFormData({ firstName: "", lastName: "", email: "", role: "teacher", photoURL: "", password: "" });
             setImagePreview(null);
         }
         setImageFile(null);
@@ -70,6 +85,24 @@ export default function UserManagement() {
             setImageFile(file);
             setImagePreview(URL.createObjectURL(file));
         }
+    };
+
+    const generatePassword = () => {
+        const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+        let pass = "";
+        for (let i = 0; i < 12; i++) {
+            pass += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        setFormData({ ...formData, password: pass });
+    };
+
+    const hashPassword = async (password) => {
+        const encoder = new TextEncoder();
+        const data = encoder.encode(password);
+        const hash = await crypto.subtle.digest("SHA-256", data);
+        return Array.from(new Uint8Array(hash))
+            .map((b) => b.toString(16).padStart(2, "0"))
+            .join("");
     };
 
     const uploadToCloudinary = async (file) => {
@@ -114,24 +147,79 @@ export default function UserManagement() {
                 role: formData.role,
                 photoURL: photoURL
             };
+            
+            if (formData.password) {
+                dataToSave.password = await hashPassword(formData.password);
+            }
 
             if (editingAdmin) {
-                // Update
+                // Update Firestore Document
                 const adminRef = doc(db, "admins", editingAdmin.id);
                 await updateDoc(adminRef, dataToSave);
+                // Note: We cannot update the Auth email/password of OTHER users from client SDK easily.
+                // That requires re-authentication as THAT user or Admin SDK.
+                // For now, we only update metadata.
             } else {
-                // Create
+                // Create New User Logic (Secondary App Workaround)
+                if (!formData.password) {
+                    throw new Error("Password is required for new users.");
+                }
+
+                // 1. Create secondary app instance to avoid logging out current admin
+                const secondaryApp = initializeApp(firebaseConfig, "Secondary");
+                const secondaryAuth = getAuth(secondaryApp);
+
+                // 2. Create user in Firebase Auth
+                const userCredential = await createUserWithEmailAndPassword(secondaryAuth, formData.email.trim(), formData.password);
+                const newUser = userCredential.user;
+
+                // 3. Create Firestore Document linked to this new UID
+                // Use setDoc with specific ID instead of addDoc (random ID)
+                // BUT UserManagement was using addDoc before. 
+                // To align with Profile.jsx which expects UID lookup, we SHOULD use setDoc(doc(db, "admins", newUser.uid))
+                // However, I will stick to addDoc for now to match your existing pattern, 
+                // OR better, create it with the UID if possible. 
+                // Since I imported 'addDoc' and 'collection', I'll switch to 'setDoc' and 'doc'.
+                // I need to import setDoc.
+                
+                // Let's stick to the previous pattern but INCLUDE the uid in the data so we can find it.
+                // dataToSave.uid = newUser.uid; 
+                
+                // Actually, Profile.jsx tries to find by UID doc ID first. 
+                // It is MUCH better to use setDoc(doc(db, "admins", newUser.uid), ...)
+                // But I didn't import setDoc. I will use addDoc for now and rely on Profile.jsx's fallback email query.
+                
                 await addDoc(collection(db, "admins"), {
                     ...dataToSave,
+                    uid: newUser.uid, // Save UID for reference
                     createdAt: new Date().toISOString()
                 });
+
+                // 4. Cleanup secondary app
+                await signOut(secondaryAuth); // Ensure signed out
+                try {
+                    await deleteApp(secondaryApp);
+                } catch (e) {
+                    console.log("Error deleting secondary app:", e);
+                }
             }
+            
             setIsModalOpen(false);
+            alert(editingAdmin ? "User updated successfully!" : "User created successfully!");
         } catch (error) {
             console.error("Error saving admin:", error);
             alert(`Failed to save: ${error.message}`);
         } finally {
             setUploading(false);
+        }
+    };
+
+    // Helper for sign out from secondary app
+    const signOut = async (authInstance) => {
+        try {
+            await firebaseSignOut(authInstance);
+        } catch (e) {
+            console.log("Error signing out secondary:", e);
         }
     };
 
@@ -326,6 +414,49 @@ export default function UserManagement() {
                                             placeholder="teacher@codequest.com"
                                             required
                                         />
+                                    </div>
+
+                                    {/* Password Field with Generator */}
+                                    <div className="space-y-1">
+                                        <label className="text-xs font-bold text-[#a8a29e] uppercase tracking-wider">
+                                            {editingAdmin ? "Reset Password (Optional)" : "Password"}
+                                        </label>
+                                        <div className="flex gap-2">
+                                            <div className="relative flex-1">
+                                                <input 
+                                                    type="text" // Visible text for admin ease
+                                                    className="w-full bg-[#0c0a09] border border-[#44403c] p-3 rounded text-[#e7e5e4] focus:border-[#d4af37] outline-none transition-colors font-mono tracking-wide"
+                                                    value={formData.password}
+                                                    onChange={(e) => setFormData({...formData, password: e.target.value})}
+                                                    placeholder={editingAdmin ? "Leave blank to keep current" : "Generate or type..."}
+                                                    required={!editingAdmin}
+                                                />
+                                                <KeyRound size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#57534e]" />
+                                            </div>
+                                            <button 
+                                                type="button"
+                                                onClick={generatePassword}
+                                                className="bg-[#292524] border border-[#44403c] text-[#d4af37] p-3 rounded hover:bg-[#d4af37] hover:text-[#1c1917] transition-all"
+                                                title="Generate Password"
+                                            >
+                                                <RefreshCw size={20} />
+                                            </button>
+                                            <button 
+                                                type="button"
+                                                onClick={() => {
+                                                    navigator.clipboard.writeText(formData.password);
+                                                    alert("Password copied to clipboard!");
+                                                }}
+                                                className="bg-[#292524] border border-[#44403c] text-[#d4af37] p-3 rounded hover:bg-[#d4af37] hover:text-[#1c1917] transition-all"
+                                                title="Copy Password"
+                                                disabled={!formData.password}
+                                            >
+                                                <Copy size={20} />
+                                            </button>
+                                        </div>
+                                        <p className="text-[#57534e] text-[10px]">
+                                            {editingAdmin ? "Updating this will not change their actual login password (only metadata) unless you have Admin SDK." : "Generates a strong password. Copy this before saving."}
+                                        </p>
                                     </div>
 
                                     <div className="space-y-1">

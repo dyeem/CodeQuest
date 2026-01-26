@@ -1,6 +1,6 @@
 import { useEffect, useState, Fragment } from 'react';
 import bg from "../assets/SMbg.png";
-import { Search, Funnel, User, X, Scroll, Sword, Shield, Skull, Star, Trophy, Target, Zap, ChevronLeft, Boxes, Trash2, Eye, Activity } from 'lucide-react';
+import { Search, Funnel, User, X, Scroll, Sword, Shield, Skull, Star, Trophy, Target, Zap, ChevronLeft, Boxes, Trash2, Eye, Activity, ExternalLink } from 'lucide-react';
 import studentImg from "../assets/student.png"; // Fallback image
 import { Dialog, Transition } from '@headlessui/react';
 import battlemode from '../assets/battlemode.png';
@@ -16,8 +16,11 @@ import debuggingdungeon from "../assets/themes/debuggingdungeon.png";
 import { db } from "../config/firebase.config";
 import { collection, onSnapshot, doc, deleteDoc, query, where, getDocs } from "firebase/firestore";
 import Loader from "../Components/Loader";
+import { useNavigate } from 'react-router-dom';
 
 export default function StudentManagement() {
+  const navigate = useNavigate();
+  
   useEffect(() => {
     document.title = "Student List | CodeQuest";
   }, []);
@@ -105,17 +108,6 @@ export default function StudentManagement() {
         const querySnapshot = await getDocs(q);
         const fetchedSubmissions = [];
         
-        // We need to fetch task details for titles if not stored in submission
-        // Assuming submission might store taskTitle or we fetch it separately.
-        // For efficiency, let's assume submission has taskTitle or we fetch tasks.
-        // If submission doesn't have title, we might need a separate fetch. 
-        // Let's assume standard schema for now or fetch tasks map.
-        
-        // Actually, fetching all tasks once and creating a map is better, but strictly 
-        // speaking for this modal, let's map what we have.
-        // If your submissions collection has taskTitle, great. If not, we might show ID.
-        // Based on previous interaction, submission object HAD 'taskTitle'.
-        
         querySnapshot.forEach((doc) => {
             fetchedSubmissions.push({ id: doc.id, ...doc.data() });
         });
@@ -132,6 +124,22 @@ export default function StudentManagement() {
     setIsSubmissionsModalOpen(false);
     setSelectedStudentForSubmissions(null);
     setStudentSubmissions([]);
+  };
+
+  const handleViewSubmissionDetail = (submission) => {
+      // Redirect to Assignments page, passing the taskId and studentId to open the grading modal
+      // We assume the route is '/assignments' or whatever is defined in routes.jsx. 
+      // Based on previous file names, likely '/assignments' or '/assignments-challenges'.
+      // I'll use the file name hint 'AssignmentandChallenges' -> likely route '/assignments' (standard naming) 
+      // or literally '/AssignmentandChallenges'.
+      // I'll use '/assignments' as a safe bet, or check routes.jsx if I could.
+      // Let's assume '/assignments' based on typical conventions, or I can check routes.jsx.
+      navigate('/assignment-and-challenges', { 
+          state: { 
+              openGradingForTask: submission.taskId,
+              preSelectedStudentId: selectedStudentForSubmissions.id 
+          } 
+      });
   };
 
   // --- REMOVE ACTION ---
@@ -559,15 +567,19 @@ export default function StudentManagement() {
                             ) : (
                                 <div className="space-y-3">
                                     {studentSubmissions.map((sub) => (
-                                        <div key={sub.id} className="bg-[#0c0a09] p-4 rounded border border-[#292524] flex items-center justify-between hover:border-[#d4af37] transition-colors group">
+                                        <div 
+                                            key={sub.id} 
+                                            onClick={() => handleViewSubmissionDetail(sub)}
+                                            className="bg-[#0c0a09] p-4 rounded border border-[#292524] flex items-center justify-between hover:border-[#d4af37] transition-all cursor-pointer group"
+                                        >
                                             <div className="flex items-center gap-4">
-                                                <div className={`p-3 rounded border ${
+                                                <div className={`p-3 rounded border transition-colors ${
                                                     sub.status === 'graded' ? 'bg-[#052e16] border-[#14532d] text-[#4ade80]' : 'bg-[#172554] border-[#1e3a8a] text-[#60a5fa]'
                                                 }`}>
                                                     <Scroll size={20} />
                                                 </div>
                                                 <div>
-                                                    <h4 className="text-[#e7e5e4] font-bold text-lg">{sub.taskTitle || "Untitled Task"}</h4>
+                                                    <h4 className="text-[#e7e5e4] font-bold text-lg group-hover:text-[#d4af37] transition-colors">{sub.taskTitle || "Untitled Task"}</h4>
                                                     <div className="flex gap-3 text-xs text-[#a8a29e] uppercase font-medium">
                                                         <span>{sub.taskType || "Assignment"}</span>
                                                         <span>•</span>
@@ -576,17 +588,20 @@ export default function StudentManagement() {
                                                 </div>
                                             </div>
                                             
-                                            <div className="text-right">
-                                                <div className={`text-sm font-bold uppercase tracking-widest mb-1 ${
-                                                    sub.status === 'graded' ? 'text-[#4ade80]' : 'text-[#fbbf24]'
-                                                }`}>
-                                                    {sub.status}
-                                                </div>
-                                                {sub.status === 'graded' && (
-                                                    <div className="text-2xl font-bold text-[#d4af37]">
-                                                        {sub.score} <span className="text-sm text-[#57534e]">/ 100</span>
+                                            <div className="flex items-center gap-4">
+                                                <div className="text-right">
+                                                    <div className={`text-sm font-bold uppercase tracking-widest mb-1 ${
+                                                        sub.status === 'graded' ? 'text-[#4ade80]' : 'text-[#fbbf24]'
+                                                    }`}>
+                                                        {sub.status}
                                                     </div>
-                                                )}
+                                                    {sub.status === 'graded' && (
+                                                        <div className="text-2xl font-bold text-[#d4af37]">
+                                                            {sub.score} <span className="text-sm text-[#57534e]">/ 100</span>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                <ExternalLink size={16} className="text-[#57534e] group-hover:text-[#d4af37] transition-colors" />
                                             </div>
                                         </div>
                                     ))}

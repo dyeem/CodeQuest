@@ -6,6 +6,7 @@ import Login from "../Auth/Login";
 import StudentManagement from "../Pages/StudentManagement";
 import AssignmentandChallenges from "../Pages/AssignmentandChallenges";
 import UserManagement from "../Pages/UserManagement";
+import Profile from "../Pages/Profile";
 
 const Routes = () => {
   const routes = useRoutes([
@@ -21,6 +22,7 @@ const Routes = () => {
             { path: "student-management", element: <StudentManagement /> },
             { path: "assignment-and-challenges", element: <AssignmentandChallenges />},
             { path: "user-management", element: <UserManagement />},
+            { path: "profile", element: <Profile />},
           ],
         },
       ],

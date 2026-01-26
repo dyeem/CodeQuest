@@ -1,19 +1,21 @@
 import { useState, useEffect } from "react";
-import { User, Lock, Eye, EyeOff, ArrowRight, ShieldCheck } from "lucide-react";
+import { User, Lock, Eye, EyeOff, ArrowRight, ShieldCheck, Loader2 } from "lucide-react";
 import bg from "../assets/loginbg.png";
 
 import { useNavigate } from "react-router-dom";
 
 import useAuth from "../hooks/auth.js";
-import { signInWithEmailAndPassword } from "firebase/auth";
-import { auth } from "../config/firebase.config.js";
+import { signInWithEmailAndPassword, signOut } from "firebase/auth";
+import { auth, db } from "../config/firebase.config.js";
+import { collection, query, where, getDocs } from "firebase/firestore";
 
 export default function Login() {
-  const { admin: user, loading } = useAuth();
+  const { admin: user, loading: authLoading } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [isVerifying, setIsVerifying] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -21,21 +23,56 @@ export default function Login() {
   }, []);
 
   useEffect(() => {
-    if (!loading && user) {
+    // If already logged in and not currently verifying, go to dashboard
+    if (!authLoading && user && !isVerifying) {
       navigate("/dashboard");
     }
-  }, [user, loading, navigate]);
+  }, [user, authLoading, navigate, isVerifying]);
+
+  const hashPassword = async (password) => {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(password);
+    const hash = await crypto.subtle.digest("SHA-256", data);
+    return Array.from(new Uint8Array(hash))
+        .map((b) => b.toString(16).padStart(2, "0"))
+        .join("");
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
+    setIsVerifying(true);
 
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      // 1. Standard Firebase Auth Login
+      // Note: If you registered the user with a hashed password as their Auth password, 
+      // you would use: const hashedPassword = await hashPassword(password);
+      // await signInWithEmailAndPassword(auth, email, hashedPassword);
+      // For now, assuming standard password usage for Auth.
+      const userCredential = await signInWithEmailAndPassword(auth, email.trim(), password);
+      const loggedInUser = userCredential.user;
+
+      // 2. Align Logic: Verify if user exists in 'admins' collection (Admin/Teacher check)
+      const q = query(collection(db, "admins"), where("email", "==", loggedInUser.email));
+      const querySnapshot = await getDocs(q);
+
+      if (querySnapshot.empty) {
+        // User is not an authorized Admin/Teacher
+        await signOut(auth);
+        throw new Error("Unauthorized access. This account is not registered as a Teacher.");
+      }
+
+      // 3. Success: Proceed to dashboard
       navigate("/dashboard");
     } catch (err) {
       console.error(err);
-      setError("Invalid email or password.");
+      if (err.code === "auth/invalid-credential" || err.code === "auth/user-not-found" || err.code === "auth/wrong-password") {
+        setError("Invalid email or password.");
+      } else {
+        setError(err.message || "An error occurred during login.");
+      }
+    } finally {
+      setIsVerifying(false);
     }
   };
 
@@ -125,17 +162,19 @@ export default function Login() {
 
             {/* Error */}
             {error && (
-              <div className="bg-[#450a0a]/20 border border-[#7f1d1d] p-3 rounded text-[#f87171] text-xs text-center font-bold tracking-wide">
+              <div className="bg-[#450a0a]/20 border border-[#7f1d1d] p-3 rounded text-[#f87171] text-xs text-center font-bold tracking-wide animate-shake">
                 {error}
               </div>
             )}
 
             {/* Button */}
             <button
-              className="mt-4 bg-[#2c241b] text-[#d4af37] py-4 px-8 rounded font-bold text-sm uppercase tracking-[0.2em] border border-[#d4af37]/50 hover:bg-[#d4af37] hover:text-[#1c1917] hover:shadow-[0_0_20px_rgba(212,175,55,0.4)] transition-all flex items-center justify-center gap-2 group"
+              disabled={isVerifying}
+              className="mt-4 bg-[#2c241b] text-[#d4af37] py-4 px-8 rounded font-bold text-sm uppercase tracking-[0.2em] border border-[#d4af37]/50 hover:bg-[#d4af37] hover:text-[#1c1917] hover:shadow-[0_0_20px_rgba(212,175,55,0.4)] transition-all flex items-center justify-center gap-2 group disabled:opacity-50 disabled:cursor-not-allowed"
               type="submit"
             >
-              LOGIN <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+              {isVerifying ? <Loader2 className="animate-spin" /> : "LOGIN"}
+              {!isVerifying && <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />}
             </button>
           </form>
         </div>

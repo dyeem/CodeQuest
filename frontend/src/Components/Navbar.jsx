@@ -58,6 +58,12 @@ export default function Sidebar() {
           label="User Management" 
           activeClass={isActive("/user-management")}
         />
+        <SidebarLink 
+          to="/profile" 
+          icon={<Users size={20} />} 
+          label="Profile" 
+          activeClass={isActive("/profile")}
+        />
       </nav>
 
       <div className="p-4 border-t border-[#292524] bg-[#0c0a09]">

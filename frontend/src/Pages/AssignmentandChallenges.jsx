@@ -11,9 +11,12 @@ import useAuth from "../hooks/auth";
 import Editor from "@monaco-editor/react";
 import useGradebook from "../hooks/useGradebook";
 import SubmissionDetailView from "../Components/Grading/SubmissionDetailView";
+import { useLocation, useNavigate } from "react-router-dom";
 
 export default function AssignmentandChallenges() {
     const { admin } = useAuth();
+    const location = useLocation();
+    const navigate = useNavigate();
     
     useEffect(() => {
         document.title = "Assignments & Challenges | CodeQuest";
@@ -27,6 +30,7 @@ export default function AssignmentandChallenges() {
     const [editingTask, setEditingTask] = useState(null); // Track the task being edited
     const [viewingTask, setViewingTask] = useState(null); // Track the task being viewed
     const [gradingTask, setGradingTask] = useState(null); // Track the task being graded
+    const [preSelectedStudentId, setPreSelectedStudentId] = useState(null);
     
     // Filter & Search State
     const [searchQuery, setSearchQuery] = useState("");
@@ -75,6 +79,45 @@ export default function AssignmentandChallenges() {
         });
         return () => unsubscribe();
     }, []);
+
+        // Handle Deep Linking from Student Management
+
+        useEffect(() => {
+
+            if (!loading && location.state && location.state.openGradingForTask && tasks.length > 0) {
+
+                const targetTask = tasks.find(t => t.id === location.state.openGradingForTask);
+
+                // Check if we need to update state to avoid loop
+
+                if (targetTask && (!gradingTask || gradingTask.id !== targetTask.id)) {
+
+                    setGradingTask(targetTask);
+
+                    setPreSelectedStudentId(location.state.preSelectedStudentId);
+
+                    
+
+                    // Immediately clear the state from history to prevent re-triggering on close
+
+                    // We use replace: true to overwrite the current history entry
+
+                    navigate(location.pathname, { replace: true, state: {} });
+
+                }
+
+            }
+
+            // eslint-disable-next-line react-hooks/exhaustive-deps
+
+        }, [loading, tasks, location.state]);
+
+    const handleCloseGrading = () => {
+        setGradingTask(null);
+        setPreSelectedStudentId(null);
+        // Also ensure navigation state is clear just in case
+        navigate(location.pathname, { replace: true, state: {} });
+    };
 
     // Filter Logic
     const filteredTasks = tasks.filter(task => {
@@ -148,6 +191,7 @@ export default function AssignmentandChallenges() {
 
     const handleGradeTask = (task) => {
         setGradingTask(task);
+        setPreSelectedStudentId(null);
     };
 
     const handleCloseModal = () => {
@@ -403,49 +447,30 @@ export default function AssignmentandChallenges() {
                 {isModalOpen && (
                     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm">
                         <div className="relative w-full max-w-5xl bg-[#1c1917] rounded-sm border-2 border-[#44403c] shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
-                            
                             {/* Modal Header */}
                             <div className="flex items-center justify-between p-6 border-b border-[#44403c] bg-[#0c0a09]">
                                 <h3 className="text-2xl font-bold text-[#d4af37] uppercase tracking-widest flex items-center gap-3">
                                     <Scroll size={24} /> {editingTask ? "Edit Assignment" : "New Assignment"}
                                 </h3>
-                                <button 
-                                    onClick={handleCloseModal}
-                                    className="text-[#a8a29e] hover:text-[#ef4444] transition-colors p-2 hover:bg-[#292524] rounded border border-transparent hover:border-[#ef4444]/50"
-                                >
-                                    <X size={24} />
-                                </button>
+                                <button onClick={handleCloseModal} className="text-[#a8a29e] hover:text-[#ef4444]"><X size={24} /></button>
                             </div>
-
-                            {/* Timeline Stepper */}
+                            {/* ... (rest of Create/Edit modal) ... */}
                             <div className="w-full bg-[#292524] border-b border-[#44403c] p-4 flex justify-center items-center gap-4">
                                 <StepIndicator step={1} currentStep={currentStep} label="Details" />
                                 <div className={`h-0.5 w-16 transition-colors duration-500 ${currentStep >= 2 ? "bg-[#d4af37]" : "bg-[#44403c]"}`}></div>
                                 <StepIndicator step={2} currentStep={currentStep} label="Configuration" />
                             </div>
-
-                            {/* Modal Content */}
                             <div className="p-8 overflow-y-auto custom-scrollbar flex-1">
                                 {currentStep === 1 ? (
-                                    // Step 1: General Details
                                     <div className="space-y-6 animate-fade-in">
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                             <div className="space-y-2">
                                                 <label className="text-xs font-bold text-[#a8a29e] uppercase tracking-widest">Assignment Title</label>
-                                                <input 
-                                                    className="w-full bg-[#0c0a09] border border-[#44403c] p-3 rounded text-[#e7e5e4] focus:border-[#d4af37] outline-none"
-                                                    placeholder="Enter title..."
-                                                    value={formData.title}
-                                                    onChange={(e) => setFormData({...formData, title: e.target.value})}
-                                                />
+                                                <input className="w-full bg-[#0c0a09] border border-[#44403c] p-3 rounded text-[#e7e5e4] focus:border-[#d4af37] outline-none" value={formData.title} onChange={(e) => setFormData({...formData, title: e.target.value})} placeholder="Enter title..." />
                                             </div>
                                             <div className="space-y-2">
                                                 <label className="text-xs font-bold text-[#a8a29e] uppercase tracking-widest">Difficulty</label>
-                                                <select 
-                                                    className="w-full bg-[#0c0a09] border border-[#44403c] p-3 rounded text-[#e7e5e4] focus:border-[#d4af37] outline-none"
-                                                    value={formData.difficulty}
-                                                    onChange={(e) => setFormData({...formData, difficulty: e.target.value})}
-                                                >
+                                                <select className="w-full bg-[#0c0a09] border border-[#44403c] p-3 rounded text-[#e7e5e4] focus:border-[#d4af37] outline-none" value={formData.difficulty} onChange={(e) => setFormData({...formData, difficulty: e.target.value})}>
                                                     <option value="easy">Easy</option>
                                                     <option value="medium">Medium</option>
                                                     <option value="hard">Hard</option>
@@ -453,78 +478,38 @@ export default function AssignmentandChallenges() {
                                             </div>
                                             <div className="space-y-2">
                                                 <label className="text-xs font-bold text-[#a8a29e] uppercase tracking-widest">Section</label>
-                                                <select 
-                                                    className="w-full bg-[#0c0a09] border border-[#44403c] p-3 rounded text-[#e7e5e4] focus:border-[#d4af37] outline-none"
-                                                    value={formData.section}
-                                                    onChange={(e) => setFormData({...formData, section: e.target.value})}
-                                                >
+                                                <select className="w-full bg-[#0c0a09] border border-[#44403c] p-3 rounded text-[#e7e5e4] focus:border-[#d4af37] outline-none" value={formData.section} onChange={(e) => setFormData({...formData, section: e.target.value})}>
                                                     <option value="A">Section A</option>
                                                     <option value="B">Section B</option>
                                                 </select>
                                             </div>
                                             <div className="space-y-2">
                                                 <label className="text-xs font-bold text-[#a8a29e] uppercase tracking-widest">Due Date & Time</label>
-                                                <input 
-                                                    type="datetime-local"
-                                                    className="w-full bg-[#0c0a09] border border-[#44403c] p-3 rounded text-[#e7e5e4] focus:border-[#d4af37] outline-none scheme-dark"
-                                                    value={formData.dueDate}
-                                                    onChange={(e) => setFormData({...formData, dueDate: e.target.value})}
-                                                />
+                                                <input type="datetime-local" className="w-full bg-[#0c0a09] border border-[#44403c] p-3 rounded text-[#e7e5e4] focus:border-[#d4af37] outline-none scheme-dark" value={formData.dueDate} onChange={(e) => setFormData({...formData, dueDate: e.target.value})} />
                                             </div>
                                         </div>
-
                                         <div className="pt-6 border-t border-[#44403c]">
                                             <label className="text-xs font-bold text-[#a8a29e] uppercase tracking-widest mb-4 block">Select Challenge Type</label>
                                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                                <ChallengeTypeOption 
-                                                    label="Quiz" 
-                                                    icon={<Scroll size={24} />}
-                                                    selected={formData.type === "quiz"}
-                                                    onClick={() => setFormData({...formData, type: "quiz"})}
-                                                />
-                                                <ChallengeTypeOption 
-                                                    label="Debug" 
-                                                    icon={<Bug size={24} />}
-                                                    selected={formData.type === "debug"}
-                                                    onClick={() => setFormData({...formData, type: "debug"})}
-                                                />
-                                                <ChallengeTypeOption 
-                                                    label="Coding" 
-                                                    icon={<Brain size={24} />}
-                                                    selected={formData.type === "coding"}
-                                                    onClick={() => setFormData({...formData, type: "coding"})}
-                                                />
+                                                <ChallengeTypeOption label="Quiz" icon={<Scroll size={24} />} selected={formData.type === "quiz"} onClick={() => setFormData({...formData, type: "quiz"})} />
+                                                <ChallengeTypeOption label="Debug" icon={<Bug size={24} />} selected={formData.type === "debug"} onClick={() => setFormData({...formData, type: "debug"})} />
+                                                <ChallengeTypeOption label="Coding" icon={<Brain size={24} />} selected={formData.type === "coding"} onClick={() => setFormData({...formData, type: "coding"})} />
                                             </div>
                                         </div>
-
-                                        <button 
-                                            onClick={handleNextStep}
-                                            disabled={!formData.type || !formData.title || !formData.dueDate}
-                                            className="w-full bg-[#2c241b] text-[#d4af37] py-4 rounded font-bold uppercase tracking-widest border border-[#d4af37]/50 hover:bg-[#d4af37] hover:text-[#1c1917] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                                        >
-                                            Next: Configure {formData.type || "Challenge"}
-                                        </button>
+                                        <button onClick={handleNextStep} disabled={!formData.type || !formData.title || !formData.dueDate} className="w-full bg-[#2c241b] text-[#d4af37] py-4 rounded font-bold uppercase tracking-widest border border-[#d4af37]/50 hover:bg-[#d4af37] hover:text-[#1c1917] transition-all disabled:opacity-50 disabled:cursor-not-allowed">Next: Configure {formData.type || "Challenge"}</button>
                                     </div>
                                 ) : (
-                                    // Step 2: Specific Challenge Config
                                     <div className="space-y-6 animate-fade-in">
                                         <div className="flex justify-between items-center mb-4">
                                             <h4 className="text-xl font-bold text-[#e7e5e4] uppercase tracking-wider">Configuring {challengeType}</h4>
                                             <button onClick={() => setCurrentStep(1)} className="text-[#a8a29e] hover:text-[#d4af37] text-sm underline uppercase tracking-wide">Back to Details</button>
                                         </div>
-                                        
                                         <div className="border border-[#44403c] p-4 rounded bg-[#0c0a09]/50">
                                             {challengeType === "quiz" && <Quiz data={quizData} setData={setQuizData} readOnly={!!editingTask} />}
                                             {challengeType === "coding" && <Coding data={codingData} setData={setCodingData} />}
                                             {challengeType === "debug" && <Debug data={debugData} setData={setDebugData} />}
                                         </div>
-
-                                        <button 
-                                            onClick={handleSaveTask}
-                                            className="w-full bg-[#d4af37] text-[#0c0a09] py-4 rounded font-bold uppercase tracking-widest hover:bg-[#fbbf24] transition-all shadow-lg flex items-center justify-center gap-2"
-                                        >
-                                           <Save size={20} /> {editingTask ? "Update Assignment" : "Save & Publish Assignment"}
-                                        </button>
+                                        <button onClick={handleSaveTask} className="w-full bg-[#d4af37] text-[#0c0a09] py-4 rounded font-bold uppercase tracking-widest hover:bg-[#fbbf24] transition-all shadow-lg flex items-center justify-center gap-2"><Save size={20} /> {editingTask ? "Update Assignment" : "Save & Publish Assignment"}</button>
                                     </div>
                                 )}
                             </div>
@@ -536,7 +521,6 @@ export default function AssignmentandChallenges() {
                 {viewingTask && (
                     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/95 backdrop-blur-sm">
                         <div className="relative w-full max-w-4xl bg-[#1c1917] rounded-sm border-2 border-[#44403c] shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
-                            {/* Modal Header */}
                             <div className="flex items-center justify-between p-6 border-b border-[#44403c] bg-[#0c0a09]">
                                 <div>
                                     <h3 className="text-2xl font-bold text-[#d4af37] uppercase tracking-widest flex items-center gap-3">
@@ -545,135 +529,60 @@ export default function AssignmentandChallenges() {
                                         {viewingTask.type === "debug" && <Bug size={24} />}
                                         {viewingTask.title}
                                     </h3>
-                                    <p className="text-[#a8a29e] text-xs mt-1 uppercase tracking-wider">
-                                        {viewingTask.type} • {viewingTask.section} • {viewingTask.difficulty} • Due: {viewingTask.dueDateFormatted}
-                                    </p>
+                                    <p className="text-[#a8a29e] text-xs mt-1 uppercase tracking-wider">{viewingTask.type} • {viewingTask.section} • {viewingTask.difficulty} • Due: {viewingTask.dueDateFormatted}</p>
                                 </div>
-                                <button 
-                                    onClick={() => setViewingTask(null)}
-                                    className="text-[#a8a29e] hover:text-[#ef4444] transition-colors p-2 hover:bg-[#292524] rounded border border-transparent hover:border-[#ef4444]/50"
-                                >
-                                    <X size={24} />
-                                </button>
+                                <button onClick={() => setViewingTask(null)} className="text-[#a8a29e] hover:text-[#ef4444]"><X size={24} /></button>
                             </div>
-
-                            {/* Modal Content */}
                             <div className="p-8 overflow-y-auto custom-scrollbar flex-1 bg-[#1c1917]">
-                                {/* Coding / Debug Instructions */}
                                 {(viewingTask.type === "coding" || viewingTask.type === "debug") && (
                                     <div className="space-y-6">
                                         <div className="bg-[#0c0a09] p-6 rounded border border-[#292524]">
-                                            <h4 className="text-[#d4af37] font-bold uppercase tracking-widest text-sm mb-4 border-b border-[#292524] pb-2">
-                                                Instructions
-                                            </h4>
-                                            <p className="text-[#e7e5e4] whitespace-pre-wrap font-serif italic text-lg leading-relaxed">
-                                                {viewingTask.instruction}
-                                            </p>
+                                            <h4 className="text-[#d4af37] font-bold uppercase tracking-widest text-sm mb-4 border-b border-[#292524] pb-2">Instructions</h4>
+                                            <p className="text-[#e7e5e4] whitespace-pre-wrap font-serif italic text-lg leading-relaxed">{viewingTask.instruction}</p>
                                         </div>
-                                        
                                         {viewingTask.type === "debug" && viewingTask.code && (
                                             <div className="bg-[#0c0a09] p-2 rounded border border-[#292524]">
-                                                <h4 className="text-[#a8a29e] font-bold uppercase tracking-widest text-xs mb-2 px-2">
-                                                    Initial Code
-                                                </h4>
-                                                <Editor
-                                                    height="300px"
-                                                    defaultLanguage="javascript"
-                                                    theme="vs-dark"
-                                                    value={viewingTask.code}
-                                                    options={{
-                                                        readOnly: true,
-                                                        fontSize: 14,
-                                                        fontFamily: 'monospace',
-                                                        minimap: { enabled: false },
-                                                        scrollBeyondLastLine: false,
-                                                    }}
-                                                />
+                                                <h4 className="text-[#a8a29e] font-bold uppercase tracking-widest text-xs mb-2 px-2">Initial Code</h4>
+                                                <Editor height="300px" defaultLanguage="javascript" theme="vs-dark" value={viewingTask.code} options={{ readOnly: true, fontSize: 14, fontFamily: 'monospace', minimap: { enabled: false }, scrollBeyondLastLine: false }} />
                                             </div>
                                         )}
                                     </div>
                                 )}
-
-                                {/* Quiz Questions */}
                                 {viewingTask.type === "quiz" && (
                                     <div className="space-y-6">
                                         <div className="flex items-center gap-2 mb-4">
-                                            <span className="bg-[#2c241b] text-[#d4af37] px-3 py-1 text-xs font-bold uppercase tracking-wider rounded border border-[#d4af37]/30">
-                                                {viewingTask.subtype || "MCQ"}
-                                            </span>
-                                            <span className="text-[#57534e] text-xs uppercase tracking-wider font-bold">
-                                                {viewingTask.questions?.length || 0} Questions
-                                            </span>
+                                            <span className="bg-[#2c241b] text-[#d4af37] px-3 py-1 text-xs font-bold uppercase tracking-wider rounded border border-[#d4af37]/30">{viewingTask.subtype || "MCQ"}</span>
+                                            <span className="text-[#57534e] text-xs uppercase tracking-wider font-bold">{viewingTask.questions?.length || 0} Questions</span>
                                         </div>
-
                                         <div className="space-y-4">
                                             {viewingTask.questions?.map((q, idx) => (
                                                 <div key={idx} className="bg-[#0c0a09] p-6 rounded border border-[#292524] relative overflow-hidden group">
                                                     <div className="absolute top-0 left-0 w-1 h-full bg-[#d4af37]/50"></div>
-                                                    
-                                                    <p className="font-bold text-[#e7e5e4] mb-4 flex gap-3 text-lg italic">
-                                                        <span className="text-[#d4af37]">Q{idx + 1}.</span>
-                                                        {q.text}
-                                                    </p>
-
-                                                    {/* MCQ Choices */}
+                                                    <p className="font-bold text-[#e7e5e4] mb-4 flex gap-3 text-lg italic"><span className="text-[#d4af37]">Q{idx + 1}.</span>{q.text}</p>
                                                     {viewingTask.subtype === "mcq" && (
                                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 ml-8">
                                                             {q.choices?.map((choice, cIdx) => (
-                                                                <div 
-                                                                    key={cIdx}
-                                                                    className={`px-4 py-3 rounded border text-sm flex items-center gap-3 ${ 
-                                                                        cIdx === q.correctIndex 
-                                                                        ? "bg-[#d4af37]/10 border-[#d4af37] text-[#d4af37] font-bold" 
-                                                                        : "bg-[#1c1917] border-[#292524] text-[#a8a29e]" 
-                                                                    }`}
-                                                                >
-                                                                    <span className="text-xs opacity-50">{String.fromCharCode(65 + cIdx)}.</span>
-                                                                    {choice}
+                                                                <div key={cIdx} className={`px-4 py-3 rounded border text-sm flex items-center gap-3 ${cIdx === q.correctIndex ? "bg-[#d4af37]/10 border-[#d4af37] text-[#d4af37] font-bold" : "bg-[#1c1917] border-[#292524] text-[#a8a29e]"}`}>
+                                                                    <span className="text-xs opacity-50">{String.fromCharCode(65 + cIdx)}.</span>{choice}
                                                                     {cIdx === q.correctIndex && <CheckCircle2 size={16} className="ml-auto" />}
                                                                 </div>
                                                             ))}
                                                         </div>
                                                     )}
-
-                                                    {/* True/False Answer */}
                                                     {viewingTask.subtype === "tf" && (
                                                         <div className="ml-8 flex gap-4">
                                                             {["True", "False"].map((opt) => (
-                                                                <div 
-                                                                    key={opt}
-                                                                    className={`px-6 py-2 rounded border text-sm font-bold uppercase tracking-wider ${ 
-                                                                        q.correctAnswer === opt
-                                                                        ? (opt === "True" ? "bg-[#2dd4bf]/10 border-[#2dd4bf] text-[#2dd4bf]" : "bg-[#ef4444]/10 border-[#ef4444] text-[#ef4444]")
-                                                                        : "bg-[#1c1917] border-[#292524] text-[#57534e] opacity-50"
-                                                                    }`}
-                                                                >
-                                                                    {opt}
-                                                                </div>
+                                                                <div key={opt} className={`px-6 py-2 rounded border text-sm font-bold uppercase tracking-wider ${q.correctAnswer === opt ? (opt === "True" ? "bg-[#2dd4bf]/10 border-[#2dd4bf] text-[#2dd4bf]" : "bg-[#ef4444]/10 border-[#ef4444] text-[#ef4444]") : "bg-[#1c1917] border-[#292524] text-[#57534e] opacity-50"}`}>{opt}</div>
                                                             ))}
                                                         </div>
                                                     )}
-
-                                                    {/* Enum Answers */}
                                                     {viewingTask.subtype === "enum" && (
                                                         <div className="ml-8 bg-[#1c1917] p-4 rounded border border-[#292524]">
                                                             <p className="text-[#a8a29e] text-xs font-bold uppercase tracking-widest mb-2">Accepted Answers:</p>
-                                                            <ul className="list-disc list-inside text-[#e7e5e4] space-y-1">
-                                                                {q.answers?.map((ans, aIdx) => (
-                                                                    <li key={aIdx}>{ans}</li>
-                                                                ))}
-                                                            </ul>
+                                                            <ul className="list-disc list-inside text-[#e7e5e4] space-y-1">{q.answers?.map((ans, aIdx) => (<li key={aIdx}>{ans}</li>))}</ul>
                                                         </div>
                                                     )}
-
-                                                    {/* Paragraph */}
-                                                    {viewingTask.subtype === "paragraph" && (
-                                                        <div className="ml-8">
-                                                            <p className="text-[#57534e] text-sm italic border-l-2 border-[#292524] pl-4 py-2">
-                                                                (Open-ended response expected)
-                                                            </p>
-                                                        </div>
-                                                    )}
+                                                    {viewingTask.subtype === "paragraph" && <div className="ml-8"><p className="text-[#57534e] text-sm italic border-l-2 border-[#292524] pl-4 py-2">(Open-ended response expected)</p></div>}
                                                 </div>
                                             ))}
                                         </div>
@@ -685,14 +594,14 @@ export default function AssignmentandChallenges() {
                 )}
 
                 {/* GRADING MODAL */}
-                {gradingTask && <GradingModal task={gradingTask} onClose={() => setGradingTask(null)} />}
+                {gradingTask && <GradingModal task={gradingTask} onClose={handleCloseGrading} initialStudentId={preSelectedStudentId} />}
             </div>
         </div>
     );
 }
 
 // Grading Modal Component
-function GradingModal({ task, onClose }) {
+function GradingModal({ task, onClose, initialStudentId }) {
     const { gradebookData, loading, updateGrade } = useGradebook(task.id, task.section);
     
     // key: studentId, value: { score, feedback }
@@ -722,8 +631,15 @@ function GradingModal({ task, onClose }) {
             }
             
             // Set selected student only if none selected
-            if (!selectedStudentId && gradebookData.length > 0) {
-                 setSelectedStudentId(gradebookData[0].student.uid);
+            if (!selectedStudentId) {
+                 if (initialStudentId) {
+                     // Check if student exists in this section
+                     const found = gradebookData.find(item => item.student.uid === initialStudentId);
+                     if (found) setSelectedStudentId(initialStudentId);
+                     else setSelectedStudentId(gradebookData[0].student.uid);
+                 } else {
+                     setSelectedStudentId(gradebookData[0].student.uid);
+                 }
             }
         }
     }, [gradebookData]); // Removed selectedStudentId from deps to avoid loop, managed inside
