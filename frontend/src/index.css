@@ -15,20 +15,43 @@
   font-family: 'Rajdhani', sans-serif;
 }
 
+/* Global Scrollbar */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: transparent;
+  background: #0c0a09; 
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.35);
-  border-radius: 10px;
+  background: #292524; 
+  border-radius: 4px;
+  border: 1px solid #44403c;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 0, 0, 0.5);
+  background: #44403c; 
+}
+
+/* Custom Gold Scrollbar Class */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #0c0a09;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #2c241b;
+  border: 1px solid #d4af37;
+  border-radius: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #d4af37;
+  border-color: #fbbf24;
 }

@@ -49,6 +49,7 @@ export default function useGradebook(taskId, sectionId) {
                             score: submission.score || 0,
                             submittedAt: submission.submittedAt,
                             answers: submission.answers || null, // Map the 'answers' field from sample
+                            codeSubmitted: submission.codeSubmitted || null, // Map the 'codeSubmitted' field
                             feedback: submission.feedback || ""
                         };
                     } else {
@@ -59,6 +60,7 @@ export default function useGradebook(taskId, sectionId) {
                             score: 0,
                             submittedAt: null,
                             answers: null,
+                            codeSubmitted: null,
                             feedback: ""
                         };
                     }

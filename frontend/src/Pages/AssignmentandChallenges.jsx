@@ -10,6 +10,7 @@ import Loader from "../Components/Loader";
 import useAuth from "../hooks/auth";
 import Editor from "@monaco-editor/react";
 import useGradebook from "../hooks/useGradebook";
+import SubmissionDetailView from "../Components/Grading/SubmissionDetailView";
 
 export default function AssignmentandChallenges() {
     const { admin } = useAuth();
@@ -697,30 +698,35 @@ function GradingModal({ task, onClose }) {
     // key: studentId, value: { score, feedback }
     const [grades, setScores] = useState({});
     const [selectedStudentId, setSelectedStudentId] = useState(null);
+    const [studentSearchQuery, setStudentSearchQuery] = useState("");
 
-    // Initialize local state
+    // Initialize local state when data loads
     useEffect(() => {
         if (gradebookData && gradebookData.length > 0) {
-            setScores(prev => {
-                const newGrades = { ...prev };
-                let hasChanges = false;
-                gradebookData.forEach(item => {
-                    if (!newGrades[item.student.uid]) {
-                        newGrades[item.student.uid] = {
-                            score: item.score,
-                            feedback: item.feedback || ""
-                        };
-                        hasChanges = true;
-                    }
-                });
-                return hasChanges ? newGrades : prev;
-            });
+            // Check if we need to initialize to avoid strict linter warning
+            const needsInit = gradebookData.some(item => !grades[item.student.uid]);
             
+            if (needsInit) {
+                setScores(prev => {
+                    const newGrades = { ...prev };
+                    gradebookData.forEach(item => {
+                        if (!newGrades[item.student.uid]) {
+                            newGrades[item.student.uid] = {
+                                score: item.score,
+                                feedback: item.feedback || ""
+                            };
+                        }
+                    });
+                    return newGrades;
+                });
+            }
+            
+            // Set selected student only if none selected
             if (!selectedStudentId && gradebookData.length > 0) {
-                setSelectedStudentId(gradebookData[0].student.uid);
+                 setSelectedStudentId(gradebookData[0].student.uid);
             }
         }
-    }, [gradebookData, selectedStudentId]);
+    }, [gradebookData]); // Removed selectedStudentId from deps to avoid loop, managed inside
 
     const handleGradeChange = (studentId, field, value) => {
         setScores(prev => ({
@@ -752,6 +758,17 @@ function GradingModal({ task, onClose }) {
         return new Date(date).toLocaleString();
     };
 
+    // Filter students based on search
+    const filteredStudents = gradebookData.filter(item => {
+        const fullName = `${item.student.firstName} ${item.student.lastName}`.toLowerCase();
+        const email = item.student.email.toLowerCase();
+        const query = studentSearchQuery.toLowerCase();
+        return fullName.includes(query) || email.includes(query);
+    });
+
+    const totalStudents = gradebookData.length;
+    const submittedCount = gradebookData.filter(item => item.status !== 'missing').length;
+
     const selectedItem = gradebookData.find(item => item.student.uid === selectedStudentId);
     const selectedGrade = grades[selectedStudentId] || { score: 0, feedback: "" };
 
@@ -765,7 +782,7 @@ function GradingModal({ task, onClose }) {
                             <GraduationCap size={24} /> Gradebook: {task.title}
                         </h3>
                         <p className="text-[#a8a29e] text-xs mt-1 uppercase tracking-wider">
-                            Section {task.section} • {gradebookData.length} Students
+                            Section {task.section}
                         </p>
                     </div>
                     <button onClick={onClose} className="text-[#a8a29e] hover:text-[#ef4444]"><X size={24} /></button>
@@ -774,10 +791,29 @@ function GradingModal({ task, onClose }) {
                 {/* Body - Split View */}
                 <div className="flex flex-1 overflow-hidden">
                     {/* Left Sidebar: Student List */}
-                    <div className="w-1/3 border-r border-[#44403c] bg-[#0c0a09] overflow-y-auto custom-scrollbar">
+                    <div className="w-1/3 border-r border-[#44403c] bg-[#0c0a09] overflow-y-auto custom-scrollbar flex flex-col">
+                        
+                        {/* Search & Summary Header */}
+                        <div className="p-4 border-b border-[#44403c] bg-[#0c0a09] sticky top-0 z-10 space-y-3">
+                            <div className="relative">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[#a8a29e]" size={14} />
+                                <input 
+                                    type="text"
+                                    placeholder="Search student..."
+                                    className="w-full bg-[#1c1917] border border-[#44403c] pl-9 pr-3 py-2 rounded text-[#e7e5e4] text-xs focus:border-[#d4af37] outline-none"
+                                    value={studentSearchQuery}
+                                    onChange={(e) => setStudentSearchQuery(e.target.value)}
+                                />
+                            </div>
+                            <div className="flex justify-between items-center text-[10px] uppercase font-bold tracking-wider text-[#57534e]">
+                                <span>Total: <span className="text-[#e7e5e4]">{totalStudents}</span></span>
+                                <span>Submitted: <span className="text-[#d4af37]">{submittedCount}</span></span>
+                            </div>
+                        </div>
+
                         {loading ? <div className="p-4"><Loader /></div> : (
-                            <div className="divide-y divide-[#292524]">
-                                {gradebookData.map(item => (
+                            <div className="divide-y divide-[#292524] flex-1">
+                                {filteredStudents.map(item => (
                                     <div 
                                         key={item.student.uid}
                                         onClick={() => setSelectedStudentId(item.student.uid)}
@@ -795,7 +831,7 @@ function GradingModal({ task, onClose }) {
                                         <ChevronRight size={16} className={`text-[#57534e] ${selectedStudentId === item.student.uid ? "text-[#d4af37]" : ""}`} />
                                     </div>
                                 ))}
-                                {gradebookData.length === 0 && <p className="p-4 text-center text-[#57534e] text-sm">No students found.</p>}
+                                {filteredStudents.length === 0 && <p className="p-8 text-center text-[#57534e] text-xs italic">No students match your search.</p>}
                             </div>
                         )}
                     </div>
@@ -824,95 +860,10 @@ function GradingModal({ task, onClose }) {
                                             <p>No submission available.</p>
                                         </div>
                                     ) : (
-                                        <div className="space-y-6">
-                                            {/* Quiz Details */}
-                                            {task.type === "quiz" && task.questions?.map((q, idx) => {
-                                                const studentAnswer = selectedItem.content ? selectedItem.content[idx] : null;
-                                                // Handling different answer formats if needed, assuming content is index-based map or array
-                                                // For robustness, let's assume selectedItem.content is an object { 0: "Answer", 1: "Answer" }
-                                                
-                                                // For simplicity, matching exact string. 
-                                                // Ensure task.questions[idx].correctAnswer exists for TF/MCQ. 
-                                                // For Enum, answers is an array of acceptable. 
-                                                
-                                                let isCorrect = false;
-                                                if (task.subtype === "mcq" || task.subtype === "tf") {
-                                                    // q.correctIndex for MCQ vs string match?
-                                                    // In MCQForm: correctIndex is stored.
-                                                    // Let's check how MCQForm stores data.
-                                                    // It stores: { text, choices, correctIndex }
-                                                    // So correct answer is q.choices[q.correctIndex]
-                                                    
-                                                    const correctAnswerText = task.subtype === "mcq" ? q.choices[q.correctIndex] : q.correctAnswer;
-                                                    
-                                                    // For MCQ, content might be the choice text or index. Usually text is safer if indices shift, but index is cleaner.
-                                                    // Let's assume the student submitted the Text Answer.
-                                                    isCorrect = studentAnswer === correctAnswerText;
-                                                }
-
-                                                return (
-                                                    <div key={idx} className="bg-[#1c1917] p-4 rounded border border-[#292524]">
-                                                        <p className="text-[#e7e5e4] font-bold mb-2 flex gap-2">{/*<span className="text-[#d4af37]">Q{idx + 1}.</span>*/}{q.text}</p>
-                                                        
-                                                        {/* Show Answers */}
-                                                        <div className="ml-6 space-y-2 text-sm">
-                                                            {(task.subtype === "mcq" || task.subtype === "tf") && (
-                                                                <>
-                                                                    <div className="flex items-center gap-2">
-                                                                        <span className="text-[#57534e] uppercase text-[10px] font-bold w-20">Correct:</span>
-                                                                        <span className="text-[#4ade80]">
-                                                                            {task.subtype === "mcq" ? q.choices[q.correctIndex] : q.correctAnswer}
-                                                                        </span>
-                                                                    </div>
-                                                                    <div className="flex items-center gap-2">
-                                                                        <span className="text-[#57534e] uppercase text-[10px] font-bold w-20">Student:</span>
-                                                                        <span className={`${studentAnswer === (task.subtype === "mcq" ? q.choices[q.correctIndex] : q.correctAnswer) ? "text-[#4ade80]" : "text-[#f87171]"}`}>
-                                                                            {studentAnswer || "(No Answer)"}
-                                                                        </span>
-                                                                    </div>
-                                                                </>
-                                                            )}
-                                                            
-                                                            {task.subtype === "enum" && (
-                                                                <>
-                                                                    <div className="mb-1 text-[#57534e] uppercase text-[10px] font-bold">Accepted Answers:</div>
-                                                                    <div className="flex flex-wrap gap-2 mb-3">
-                                                                        {q.answers.map((a, i) => (
-                                                                            <span key={i} className="px-2 py-1 bg-[#292524] rounded text-[#a8a29e] text-xs">{a}</span>
-                                                                        ))}
-                                                                    </div>
-                                                                    <div className="text-[#57534e] uppercase text-[10px] font-bold">Student Answer:</div>
-                                                                    <p className="text-[#e7e5e4] italic">{studentAnswer || "(No Answer)"}</p>
-                                                                </>
-                                                            )}
-
-                                                            {task.subtype === "paragraph" && (
-                                                                <>
-                                                                    <div className="text-[#57534e] uppercase text-[10px] font-bold">Student Response:</div>
-                                                                    <p className="text-[#e7e5e4] mt-1 whitespace-pre-wrap">{studentAnswer || "(No Answer)"}</p>
-                                                                </>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                );
-                                            })}
-
-                                            {/* Coding / Debug Display */}
-                                            {(task.type === "coding" || task.type === "debug") && (
-                                                <div className="space-y-4">
-                                                    <div className="bg-[#1c1917] p-4 rounded border border-[#292524]">
-                                                        <span className="text-[#57534e] uppercase text-[10px] font-bold block mb-2">Student Code Submission</span>
-                                                        <Editor
-                                                            height="400px"
-                                                            defaultLanguage="javascript"
-                                                            theme="vs-dark"
-                                                            value={selectedItem.content || "// No code submitted"}
-                                                            options={{ readOnly: true, fontSize: 14, fontFamily: 'monospace', minimap: { enabled: false } }}
-                                                        />
-                                                    </div>
-                                                </div>
-                                            )}
-                                        </div>
+                                        <SubmissionDetailView 
+                                            submission={selectedItem} 
+                                            task={task} 
+                                        />
                                     )}
                                 </div>
 
