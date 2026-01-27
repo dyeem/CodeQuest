@@ -5,7 +5,7 @@ import Quiz from "../Components/Challenge/Quiz";
 import Debug from "../Components/Challenge/Debug";
 import { Scroll, Brain, Bug, X, Plus, CheckCircle2, Trash2, Edit2, Save, Search, Filter, Eye, GraduationCap, AlertCircle, CheckCircle, ChevronRight, User } from "lucide-react";
 import { db } from "../config/firebase.config";
-import { collection, onSnapshot, addDoc, deleteDoc, doc, updateDoc } from "firebase/firestore";
+import { collection, onSnapshot, addDoc, deleteDoc, doc, updateDoc, query, where } from "firebase/firestore";
 import Loader from "../Components/Loader";
 import useAuth from "../hooks/auth";
 import Editor from "@monaco-editor/react";
@@ -63,8 +63,12 @@ export default function AssignmentandChallenges() {
 
     // Fetch Tasks
     useEffect(() => {
+        if (!admin) return;
+
         const tasksCollection = collection(db, "task");
-        const unsubscribe = onSnapshot(tasksCollection, (snapshot) => {
+        const q = query(tasksCollection, where("createdBy", "==", admin.uid));
+
+        const unsubscribe = onSnapshot(q, (snapshot) => {
             const fetchedTasks = snapshot.docs.map(doc => {
                 const data = doc.data();
                 return {
@@ -78,7 +82,7 @@ export default function AssignmentandChallenges() {
             setLoading(false);
         });
         return () => unsubscribe();
-    }, []);
+    }, [admin]);
 
         // Handle Deep Linking from Student Management
 

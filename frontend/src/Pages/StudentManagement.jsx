@@ -13,8 +13,9 @@ import loopcanyon from "../assets/themes/loopcanyon.png";
 import jslab from "../assets/themes/jslab.png";
 import debuggingdungeon from "../assets/themes/debuggingdungeon.png";
 
-import { db } from "../config/firebase.config";
+import { db, auth } from "../config/firebase.config";
 import { collection, onSnapshot, doc, deleteDoc, query, where, getDocs } from "firebase/firestore";
+import { onAuthStateChanged } from "firebase/auth";
 import Loader from "../Components/Loader";
 import { useNavigate } from 'react-router-dom';
 
@@ -40,9 +41,62 @@ export default function StudentManagement() {
   const [studentSubmissions, setStudentSubmissions] = useState([]);
   const [submissionsLoading, setSubmissionsLoading] = useState(false);
 
+  const [teacherSection, setTeacherSection] = useState(null);
+  const [authLoading, setAuthLoading] = useState(true);
+
   useEffect(() => {
+    const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
+        if (user) {
+            try {
+                // Teachers and admins are stored in the 'admins' collection
+                // Since they might be stored with random doc IDs but have a 'uid' field:
+                const adminQuery = query(collection(db, "admins"), where("uid", "==", user.uid));
+                const querySnapshot = await getDocs(adminQuery);
+                
+                if (!querySnapshot.empty) {
+                    const data = querySnapshot.docs[0].data();
+                    // If the user is an admin, they usually have "admin" role and might not have a section
+                    // We check if role is 'admin' to grant ALL_ACCESS, otherwise use their assigned section
+                    if (data.role === 'admin') {
+                        setTeacherSection("ALL_ACCESS");
+                    } else {
+                        setTeacherSection(data.section || null);
+                    }
+                }
+            } catch (error) {
+                console.error("Error fetching teacher profile:", error);
+            }
+        }
+        setAuthLoading(false);
+    });
+    return () => unsubscribeAuth();
+  }, []);
+
+  useEffect(() => {
+    if (authLoading) return;
+
+    if (!teacherSection) {
+        setStudents([]);
+        setLoading(false);
+        return;
+    }
+
     const usersCollection = collection(db, "users");
-    const unsubscribe = onSnapshot(usersCollection, (snapshot) => {
+    
+    // If teacherSection is "ALL_ACCESS" (e.g. an admin), fetch all students
+    // Otherwise, filter by the teacher's specific section
+    let q;
+    if (teacherSection === "ALL_ACCESS") {
+        q = query(usersCollection, where("role", "==", "student"));
+    } else {
+        q = query(
+            usersCollection, 
+            where("section", "==", teacherSection),
+            where("role", "==", "student")
+        );
+    }
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
         const fetchedStudents = snapshot.docs.map(doc => {
             const data = doc.data();
             
@@ -75,7 +129,7 @@ export default function StudentManagement() {
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [authLoading, teacherSection]);
 
   const classes = ["All", ...new Set(students.map((s) => s.class))];
 
