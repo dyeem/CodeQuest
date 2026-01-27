@@ -30,7 +30,6 @@ export default function Sidebar() {
            <Scroll size={32} className="text-[#d4af37]" />
            <span className="uppercase drop-shadow-sm">CodeQuest</span>
         </Link>
-        <p className="text-xs text-[#57534e] mt-2 tracking-[0.2em] text-center uppercase">Manage Students</p>
       </div>
 
       <nav className="flex-1 px-3 py-8 space-y-4">

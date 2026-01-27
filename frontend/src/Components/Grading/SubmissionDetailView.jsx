@@ -1,13 +1,62 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Editor from "@monaco-editor/react";
 import { CheckCircle2, AlertCircle } from "lucide-react";
 
-export default function SubmissionDetailView({ submission, task }) {
+export default function SubmissionDetailView({ submission, task, onScoreUpdate }) {
+    const [questionScores, setQuestionScores] = useState({});
+
+    // Reset scores when student changes
+    useEffect(() => {
+        setQuestionScores({});
+    }, [submission?.student?.uid]);
+
+    // Recalculate total score whenever per-question scores change
+    useEffect(() => {
+        if (!onScoreUpdate) return;
+
+        let total = 0;
+        
+        // Add up manual scores
+        Object.values(questionScores).forEach(s => total += (Number(s) || 0));
+
+        // Add up auto-graded scores (MCQ/TF) if any
+        if (task?.questions && (task.subtype === 'mcq' || task.subtype === 'tf')) {
+            const studentAnswers = submission?.answers || submission?.content;
+            task.questions.forEach((q, idx) => {
+                const rawAnswer = studentAnswers ? studentAnswers[idx] : null;
+                let isCorrect = false;
+                if (task.subtype === 'mcq') {
+                    if (Number(rawAnswer) === Number(q.correctIndex)) isCorrect = true;
+                } else if (task.subtype === 'tf') {
+                    if (rawAnswer === q.correctAnswer) isCorrect = true;
+                }
+                
+                // Assuming 1 point per auto-graded question for now
+                if (isCorrect) total += 1;
+            });
+        }
+
+        // Only update if total > 0 to avoid overwriting existing score with 0 on load
+        // But if user explicitly sets 0, we want that.
+        // Better logic: Only call update if questionScores has entries.
+        if (Object.keys(questionScores).length > 0) {
+             onScoreUpdate(total);
+        }
+        
+    }, [questionScores, task, submission, onScoreUpdate]);
+
     if (!submission || !task) return null;
 
     const { type, subtype } = task;
     // 'answers' field from submission (based on previous context fix) or fallback to content if needed
     const studentAnswers = submission.answers || submission.content;
+
+    const handleQuestionScoreChange = (idx, val) => {
+        setQuestionScores(prev => ({
+            ...prev,
+            [idx]: val
+        }));
+    };
 
     // --- CASE 1: Coding & Debugging ---
     if (type === 'coding' || type === 'debug') {
@@ -53,7 +102,7 @@ export default function SubmissionDetailView({ submission, task }) {
 
     // --- CASE 2: Quizzes ---
     if (type === 'quiz') {
-        // Calculate Score for Auto-Graded Types
+        // Calculate Score for Auto-Graded Types (Display Only)
         let correctCount = 0;
         let totalCount = task.questions?.length || 0;
         const isAutoGradable = subtype === 'mcq' || subtype === 'tf';
@@ -137,6 +186,20 @@ export default function SubmissionDetailView({ submission, task }) {
                                 {(subtype === 'mcq' || subtype === 'tf') && (
                                     <div className={`absolute top-0 right-0 px-3 py-1 text-[10px] font-bold uppercase rounded-bl border-l border-b ${isCorrect ? "bg-[#052e16] text-[#4ade80] border-[#14532d]" : "bg-[#450a0a] text-[#f87171] border-[#7f1d1d]"}`}>
                                         {isCorrect ? "Correct" : "Incorrect"}
+                                    </div>
+                                )}
+
+                                {/* Manual Grading Input for Enum/Paragraph */}
+                                {(subtype === 'enum' || subtype === 'paragraph') && (
+                                    <div className="absolute top-3 right-3 flex items-center gap-2">
+                                        <label className="text-[10px] text-[#a8a29e] uppercase font-bold tracking-widest">Score:</label>
+                                        <input 
+                                            type="number" 
+                                            className="w-16 bg-[#0c0a09] border border-[#44403c] p-1 text-center text-[#d4af37] font-bold text-sm focus:border-[#d4af37] outline-none rounded"
+                                            value={questionScores[idx] || ""}
+                                            onChange={(e) => handleQuestionScoreChange(idx, e.target.value)}
+                                            placeholder="0"
+                                        />
                                     </div>
                                 )}
 

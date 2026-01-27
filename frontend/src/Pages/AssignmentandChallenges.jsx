@@ -612,23 +612,23 @@ function GradingModal({ task, onClose, initialStudentId }) {
     // Initialize local state when data loads
     useEffect(() => {
         if (gradebookData && gradebookData.length > 0) {
-            // Check if we need to initialize to avoid strict linter warning
-            const needsInit = gradebookData.some(item => !grades[item.student.uid]);
-            
-            if (needsInit) {
-                setScores(prev => {
-                    const newGrades = { ...prev };
-                    gradebookData.forEach(item => {
-                        if (!newGrades[item.student.uid]) {
-                            newGrades[item.student.uid] = {
-                                score: item.score,
-                                feedback: item.feedback || ""
-                            };
-                        }
-                    });
-                    return newGrades;
+            setScores(prev => {
+                // Check if any student is missing from the current grades state
+                const needsUpdate = gradebookData.some(item => !prev[item.student.uid]);
+                
+                if (!needsUpdate) return prev;
+
+                const newGrades = { ...prev };
+                gradebookData.forEach(item => {
+                    if (!newGrades[item.student.uid]) {
+                        newGrades[item.student.uid] = {
+                            score: item.score,
+                            feedback: item.feedback || ""
+                        };
+                    }
                 });
-            }
+                return newGrades;
+            });
             
             // Set selected student only if none selected
             if (!selectedStudentId) {
@@ -638,11 +638,14 @@ function GradingModal({ task, onClose, initialStudentId }) {
                      if (found) setSelectedStudentId(initialStudentId);
                      else setSelectedStudentId(gradebookData[0].student.uid);
                  } else {
-                     setSelectedStudentId(gradebookData[0].student.uid);
+                     // Default to first student in the list
+                     const firstSubmitted = gradebookData.find(s => s.status !== 'missing');
+                     setSelectedStudentId(firstSubmitted ? firstSubmitted.student.uid : gradebookData[0].student.uid);
                  }
             }
         }
-    }, [gradebookData]); // Removed selectedStudentId from deps to avoid loop, managed inside
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [gradebookData]);
 
     const handleGradeChange = (studentId, field, value) => {
         setScores(prev => ({
@@ -668,25 +671,39 @@ function GradingModal({ task, onClose, initialStudentId }) {
         if (!date) return "-";
         // Check if Firestore Timestamp (has toDate method)
         if (typeof date.toDate === 'function') {
-            return date.toDate().toLocaleString();
+            return date.toDate().toLocaleString('en-US', {
+                month: 'long',
+                day: 'numeric',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: true
+            });
         }
-        // Check if string or standard Date
-        return new Date(date).toLocaleString();
+        // Handle native Date or ISO string
+        try {
+            return new Date(date).toLocaleString();
+        } catch {
+            return String(date);
+        }
     };
-
-    // Filter students based on search
-    const filteredStudents = gradebookData.filter(item => {
-        const fullName = `${item.student.firstName} ${item.student.lastName}`.toLowerCase();
-        const email = item.student.email.toLowerCase();
-        const query = studentSearchQuery.toLowerCase();
-        return fullName.includes(query) || email.includes(query);
-    });
 
     const totalStudents = gradebookData.length;
     const submittedCount = gradebookData.filter(item => item.status !== 'missing').length;
 
     const selectedItem = gradebookData.find(item => item.student.uid === selectedStudentId);
     const selectedGrade = grades[selectedStudentId] || { score: 0, feedback: "" };
+
+    // Sort the data: Submitted first, then Graded, then Missing. Alphabetical within groups.
+    const sortedGradebook = [...gradebookData].sort((a, b) => {
+        const priority = { submitted: 1, graded: 2, missing: 3 };
+        const pA = priority[a.status] || 4;
+        const pB = priority[b.status] || 4;
+        
+        if (pA !== pB) return pA - pB;
+        return a.student.lastName.localeCompare(b.student.lastName);
+    });
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/95 backdrop-blur-sm">
@@ -729,25 +746,41 @@ function GradingModal({ task, onClose, initialStudentId }) {
 
                         {loading ? <div className="p-4"><Loader /></div> : (
                             <div className="divide-y divide-[#292524] flex-1">
-                                {filteredStudents.map(item => (
-                                    <div 
-                                        key={item.student.uid}
-                                        onClick={() => setSelectedStudentId(item.student.uid)}
-                                        className={`p-4 cursor-pointer transition-colors flex items-center justify-between ${selectedStudentId === item.student.uid ? "bg-[#292524] border-l-4 border-[#d4af37]" : "hover:bg-[#1c1917] border-l-4 border-transparent"}`}
-                                    >
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-8 h-8 rounded-full bg-[#1c1917] flex items-center justify-center border border-[#44403c] text-[#a8a29e]">
-                                                <User size={16} />
-                                            </div>
-                                            <div>
-                                                <p className="text-sm font-bold text-[#e7e5e4]">{item.student.firstName} {item.student.lastName}</p>
-                                                <StatusBadge status={item.status} />
+                                {sortedGradebook.filter(item => {
+                                    const fullName = `${item.student.firstName} ${item.student.lastName}`.toLowerCase();
+                                    const email = item.student.email.toLowerCase();
+                                    const query = studentSearchQuery.toLowerCase();
+                                    return fullName.includes(query) || email.includes(query);
+                                }).map((item, index, array) => {
+                                    // Check if we need a divider
+                                    const isFirstMissing = item.status === 'missing' && (index === 0 || array[index - 1].status !== 'missing');
+                                    
+                                    return (
+                                        <div key={item.student.uid}>
+                                            {isFirstMissing && (
+                                                <div className="bg-[#292524] px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-[#57534e] border-y border-[#44403c]">
+                                                    Not Submitted
+                                                </div>
+                                            )}
+                                            <div 
+                                                onClick={() => setSelectedStudentId(item.student.uid)}
+                                                className={`p-4 cursor-pointer transition-colors flex items-center justify-between ${selectedStudentId === item.student.uid ? "bg-[#292524] border-l-4 border-[#d4af37]" : "hover:bg-[#1c1917] border-l-4 border-transparent"}`}
+                                            >
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-8 h-8 rounded-full bg-[#1c1917] flex items-center justify-center border border-[#44403c] text-[#a8a29e]">
+                                                        <User size={16} />
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-sm font-bold text-[#e7e5e4]">{item.student.firstName} {item.student.lastName}</p>
+                                                        <StatusBadge status={item.status} />
+                                                    </div>
+                                                </div>
+                                                <ChevronRight size={16} className={`text-[#57534e] ${selectedStudentId === item.student.uid ? "text-[#d4af37]" : ""}`} />
                                             </div>
                                         </div>
-                                        <ChevronRight size={16} className={`text-[#57534e] ${selectedStudentId === item.student.uid ? "text-[#d4af37]" : ""}`} />
-                                    </div>
-                                ))}
-                                {filteredStudents.length === 0 && <p className="p-8 text-center text-[#57534e] text-xs italic">No students match your search.</p>}
+                                    );
+                                })}
+                                {sortedGradebook.length === 0 && <p className="p-8 text-center text-[#57534e] text-xs italic">No students match your search.</p>}
                             </div>
                         )}
                     </div>
@@ -779,6 +812,7 @@ function GradingModal({ task, onClose, initialStudentId }) {
                                         <SubmissionDetailView 
                                             submission={selectedItem} 
                                             task={task} 
+                                            onScoreUpdate={(newScore) => handleGradeChange(selectedStudentId, "score", newScore)}
                                         />
                                     )}
                                 </div>
