@@ -3,9 +3,9 @@ import bg from "../assets/assignmentandchallenges.png";
 import Coding from "../Components/Challenge/Coding";
 import Quiz from "../Components/Challenge/Quiz";
 import Debug from "../Components/Challenge/Debug";
-import { Scroll, Brain, Bug, X, Plus, CheckCircle2, Trash2, Edit2, Save, Search, Filter, Eye, GraduationCap, AlertCircle, CheckCircle, ChevronRight, User } from "lucide-react";
+import { Scroll, Brain, Bug, X, Plus, CheckCircle2, Trash2, Edit2, Save, Search, Filter, Eye, GraduationCap, AlertCircle, CheckCircle, ChevronRight, User, Layers, Menu } from "lucide-react";
 import { db } from "../config/firebase.config";
-import { collection, onSnapshot, addDoc, deleteDoc, doc, updateDoc, query, where } from "firebase/firestore";
+import { collection, onSnapshot, addDoc, deleteDoc, doc, updateDoc, query, where, getDoc, getDocs } from "firebase/firestore";
 import Loader from "../Components/Loader";
 import useAuth from "../hooks/auth";
 import Editor from "@monaco-editor/react";
@@ -27,11 +27,13 @@ export default function AssignmentandChallenges() {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [challengeType, setChallengeType] = useState("");
     const [currentStep, setCurrentStep] = useState(1);
-    const [editingTask, setEditingTask] = useState(null); // Track the task being edited
-    const [viewingTask, setViewingTask] = useState(null); // Track the task being viewed
-    const [gradingTask, setGradingTask] = useState(null); // Track the task being graded
+    const [editingTask, setEditingTask] = useState(null);
+    const [viewingTask, setViewingTask] = useState(null);
+    const [gradingTask, setGradingTask] = useState(null);
     const [preSelectedStudentId, setPreSelectedStudentId] = useState(null);
-    
+    const [userSection, setUserSection] = useState(null);
+    const [showMobileFilters, setShowMobileFilters] = useState(false);
+
     // Filter & Search State
     const [searchQuery, setSearchQuery] = useState("");
     const [filterType, setFilterType] = useState("all");
@@ -61,6 +63,38 @@ export default function AssignmentandChallenges() {
         paragraphQuestions: []
     });
 
+    // Fetch User Section
+    useEffect(() => {
+        const fetchUserSection = async () => {
+            if (admin?.uid) {
+                try {
+                    let userData = null;
+                    const userDoc = await getDoc(doc(db, "admins", admin.uid));
+                    
+                    if (userDoc.exists()) {
+                        userData = userDoc.data();
+                    } else {
+                        const q = query(collection(db, "admins"), where("email", "==", admin.email));
+                        const querySnapshot = await getDocs(q);
+                        if (!querySnapshot.empty) {
+                            userData = querySnapshot.docs[0].data();
+                        }
+                    }
+
+                    if (userData && userData.section) {
+                        const sec = userData.section;
+                        setUserSection(sec);
+                        setFilterSection(sec);
+                        setFormData(prev => ({ ...prev, section: sec }));
+                    }
+                } catch (error) {
+                    console.error("Error fetching user section:", error);
+                }
+            }
+        };
+        fetchUserSection();
+    }, [admin]);
+
     // Fetch Tasks
     useEffect(() => {
         if (!admin) return;
@@ -74,7 +108,6 @@ export default function AssignmentandChallenges() {
                 return {
                     id: doc.id,
                     ...data,
-                    // Format date for display if it exists
                     dueDateFormatted: data.dueDate ? new Date(data.dueDate).toLocaleString() : "No Date"
                 };
             });
@@ -84,42 +117,22 @@ export default function AssignmentandChallenges() {
         return () => unsubscribe();
     }, [admin]);
 
-        // Handle Deep Linking from Student Management
-
-        useEffect(() => {
-
-            if (!loading && location.state && location.state.openGradingForTask && tasks.length > 0) {
-
-                const targetTask = tasks.find(t => t.id === location.state.openGradingForTask);
-
-                // Check if we need to update state to avoid loop
-
-                if (targetTask && (!gradingTask || gradingTask.id !== targetTask.id)) {
-
-                    setGradingTask(targetTask);
-
-                    setPreSelectedStudentId(location.state.preSelectedStudentId);
-
-                    
-
-                    // Immediately clear the state from history to prevent re-triggering on close
-
-                    // We use replace: true to overwrite the current history entry
-
-                    navigate(location.pathname, { replace: true, state: {} });
-
-                }
-
+    // Handle Deep Linking from Student Management
+    useEffect(() => {
+        if (!loading && location.state && location.state.openGradingForTask && tasks.length > 0) {
+            const targetTask = tasks.find(t => t.id === location.state.openGradingForTask);
+            if (targetTask && (!gradingTask || gradingTask.id !== targetTask.id)) {
+                setGradingTask(targetTask);
+                setPreSelectedStudentId(location.state.preSelectedStudentId);
+                navigate(location.pathname, { replace: true, state: {} });
             }
-
-            // eslint-disable-next-line react-hooks/exhaustive-deps
-
-        }, [loading, tasks, location.state]);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [loading, tasks, location.state]);
 
     const handleCloseGrading = () => {
         setGradingTask(null);
         setPreSelectedStudentId(null);
-        // Also ensure navigation state is clear just in case
         navigate(location.pathname, { replace: true, state: {} });
     };
 
@@ -136,7 +149,7 @@ export default function AssignmentandChallenges() {
     });
 
     const resetForm = () => {
-        setFormData({ title: "", difficulty: "easy", section: "A", dueDate: "", type: "" });
+        setFormData({ title: "", difficulty: "easy", section: userSection || "A", dueDate: "", type: "" });
         setCodingData({ instruction: "" });
         setDebugData({
             instruction: "", 
@@ -170,7 +183,6 @@ export default function AssignmentandChallenges() {
         });
         setChallengeType(task.type);
 
-        // Pre-fill specific data based on type
         if (task.type === "coding") {
             setCodingData({ instruction: task.instruction || "" });
         } else if (task.type === "debug") {
@@ -218,7 +230,6 @@ export default function AssignmentandChallenges() {
             } else if (formData.type === "debug") {
                 specificData = debugData;
             } else if (formData.type === "quiz") {
-                // Filter only the relevant questions based on subtype
                 const { subtype } = quizData;
                 let questions = [];
                 if (subtype === "mcq") questions = quizData.mcQuestions;
@@ -236,13 +247,11 @@ export default function AssignmentandChallenges() {
             };
 
             if (editingTask) {
-                // Update existing task
                 const taskRef = doc(db, "task", editingTask.id);
                 await updateDoc(taskRef, payload);
                 console.log("Document updated with ID: ", editingTask.id);
                 alert("Assignment updated successfully!");
             } else {
-                // Create new task
                 const docRef = await addDoc(collection(db, "task"), {
                     ...payload,
                     createdAt: new Date().toISOString(),
@@ -274,9 +283,9 @@ export default function AssignmentandChallenges() {
     if (loading) return <Loader />;
 
     return (
-        <div className="font-serif min-h-full w-full flex flex-col items-center bg-[#1c1917] text-[#e7e5e4] relative">
-             {/* Background Image */}
-             <div 
+        <div className="font-serif min-h-screen w-full flex flex-col items-center bg-[#1c1917] text-[#e7e5e4] relative overflow-x-hidden">
+            {/* Background Image */}
+            <div 
                 className="fixed inset-0 z-0 opacity-15 pointer-events-none"
                 style={{
                     backgroundImage: `url(${bg})`,
@@ -288,98 +297,175 @@ export default function AssignmentandChallenges() {
 
             <div className="w-full flex flex-col items-center relative z-10">
                 {/* Header */}
-                <div className="w-full bg-[#0c0a09] border-b-4 border-[#292524] py-10 px-6 shadow-2xl">
+                <div className="w-full bg-[#0c0a09] border-b-2 md:border-b-4 border-[#292524] py-4 px-4 md:py-10 md:px-6 shadow-2xl">
                     <div className="max-w-7xl mx-auto">
-                        <h1 className="text-4xl font-bold tracking-[0.15em] uppercase text-[#d4af37]">
+                        <h1 className="text-xl sm:text-2xl md:text-4xl font-bold tracking-[0.1em] md:tracking-[0.15em] uppercase text-[#d4af37]">
                             Assignments & Challenges
                         </h1>
-                        <p className="text-[#a8a29e] mt-2 tracking-wide">Manage trials for your disciples</p>
+                        <p className="text-[#a8a29e] mt-1 md:mt-2 tracking-wide text-xs sm:text-sm md:text-base">Manage trials for your disciples</p>
                     </div>
                 </div>
 
                 {/* Filter & Search Controls */}
-                <div className="max-w-7xl w-full px-6 mt-10">
-                    <div className="bg-[#292524] p-4 rounded-sm border border-[#44403c] shadow-lg flex flex-col md:flex-row gap-4 items-center justify-between">
-                        
-                        {/* Search Bar */}
-                        <div className="relative w-full md:w-1/3">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[#a8a29e]" size={18} />
+                <div className="max-w-7xl w-full px-3 sm:px-4 md:px-6 mt-4 md:mt-10">
+                    {/* Mobile: Search + Filter Toggle */}
+                    <div className="md:hidden space-y-3">
+                        <div className="relative">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[#a8a29e]" size={16} />
                             <input 
                                 type="text"
-                                placeholder="Search by title, type, difficulty..."
-                                className="w-full bg-[#0c0a09] border border-[#44403c] pl-10 pr-4 py-2 rounded text-[#e7e5e4] focus:border-[#d4af37] outline-none placeholder-[#57534e]"
+                                placeholder="Search assignments..."
+                                className="w-full bg-[#292524] border border-[#44403c] pl-10 pr-4 py-3 rounded text-[#e7e5e4] focus:border-[#d4af37] outline-none placeholder-[#57534e] text-sm"
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
                             />
                         </div>
-
-                        {/* Filters & Action */}
-                        <div className="flex flex-wrap gap-4 w-full md:w-auto items-center justify-end">
-                            <div className="flex items-center gap-2 text-[#a8a29e] text-sm font-bold uppercase tracking-wider">
-                                <Filter size={16} /> Filters:
-                            </div>
-
-                            <select 
-                                className="bg-[#0c0a09] border border-[#44403c] px-3 py-2 rounded text-[#e7e5e4] focus:border-[#d4af37] outline-none text-sm"
-                                value={filterType}
-                                onChange={(e) => setFilterType(e.target.value)}
+                        
+                        <div className="flex gap-2">
+                            <button 
+                                onClick={() => setShowMobileFilters(!showMobileFilters)}
+                                className="flex-1 flex items-center justify-center gap-2 bg-[#292524] text-[#a8a29e] px-4 py-3 rounded border border-[#44403c] hover:border-[#d4af37] transition-all text-sm font-bold uppercase tracking-wider"
                             >
-                                <option value="all">All Types</option>
-                                <option value="quiz">Quiz</option>
-                                <option value="coding">Coding</option>
-                                <option value="debug">Debug</option>
-                            </select>
-
-                            <select 
-                                className="bg-[#0c0a09] border border-[#44403c] px-3 py-2 rounded text-[#e7e5e4] focus:border-[#d4af37] outline-none text-sm"
-                                value={filterDifficulty}
-                                onChange={(e) => setFilterDifficulty(e.target.value)}
-                            >
-                                <option value="all">All Difficulties</option>
-                                <option value="easy">Easy</option>
-                                <option value="medium">Medium</option>
-                                <option value="hard">Hard</option>
-                            </select>
-
-                            <select 
-                                className="bg-[#0c0a09] border border-[#44403c] px-3 py-2 rounded text-[#e7e5e4] focus:border-[#d4af37] outline-none text-sm"
-                                value={filterSection}
-                                onChange={(e) => setFilterSection(e.target.value)}
-                            >
-                                <option value="all">All Sections</option>
-                                <option value="A">Section A</option>
-                                <option value="B">Section B</option>
-                            </select>
-
+                                <Menu size={16} /> Filters
+                            </button>
                             <button 
                                 onClick={handleOpenModal}
-                                className="flex items-center gap-2 bg-[#2c241b] text-[#d4af37] px-4 py-2 rounded border border-[#d4af37]/50 hover:bg-[#d4af37] hover:text-[#1c1917] transition-all duration-300 font-bold uppercase tracking-widest text-xs ml-2"
+                                className="flex-1 flex items-center justify-center gap-2 bg-[#2c241b] text-[#d4af37] px-4 py-3 rounded border border-[#d4af37]/50 hover:bg-[#d4af37] hover:text-[#1c1917] transition-all font-bold uppercase tracking-wider text-sm"
                             >
-                                <Plus size={16} /> Create Assignment
+                                <Plus size={16} /> Create
                             </button>
+                        </div>
+
+                        {/* Mobile Filter Dropdown */}
+                        {showMobileFilters && (
+                            <div className="bg-[#292524] p-4 rounded border border-[#44403c] space-y-3 animate-fade-in">
+                                <select 
+                                    className="w-full bg-[#0c0a09] border border-[#44403c] px-3 py-2.5 rounded text-[#e7e5e4] focus:border-[#d4af37] outline-none text-sm"
+                                    value={filterType}
+                                    onChange={(e) => setFilterType(e.target.value)}
+                                >
+                                    <option value="all">All Types</option>
+                                    <option value="quiz">Quiz</option>
+                                    <option value="coding">Coding</option>
+                                    <option value="debug">Debug</option>
+                                </select>
+
+                                <select 
+                                    className="w-full bg-[#0c0a09] border border-[#44403c] px-3 py-2.5 rounded text-[#e7e5e4] focus:border-[#d4af37] outline-none text-sm"
+                                    value={filterDifficulty}
+                                    onChange={(e) => setFilterDifficulty(e.target.value)}
+                                >
+                                    <option value="all">All Difficulties</option>
+                                    <option value="easy">Easy</option>
+                                    <option value="medium">Medium</option>
+                                    <option value="hard">Hard</option>
+                                </select>
+
+                                {!userSection && (
+                                    <select 
+                                        className="w-full bg-[#0c0a09] border border-[#44403c] px-3 py-2.5 rounded text-[#e7e5e4] focus:border-[#d4af37] outline-none text-sm"
+                                        value={filterSection}
+                                        onChange={(e) => setFilterSection(e.target.value)}
+                                    >
+                                        <option value="all">All Sections</option>
+                                        <option value="A">Section A</option>
+                                        <option value="B">Section B</option>
+                                    </select>
+                                )}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Desktop: Full Filter Bar */}
+                    <div className="hidden md:block bg-[#292524] p-4 rounded-sm border border-[#44403c] shadow-lg">
+                        <div className="flex flex-col lg:flex-row gap-4 items-center justify-between">
+                            {/* Search Bar */}
+                            <div className="relative w-full lg:w-1/3">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[#a8a29e]" size={18} />
+                                <input 
+                                    type="text"
+                                    placeholder="Search by title, type, difficulty..."
+                                    className="w-full bg-[#0c0a09] border border-[#44403c] pl-10 pr-4 py-2 rounded text-[#e7e5e4] focus:border-[#d4af37] outline-none placeholder-[#57534e]"
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                />
+                            </div>
+
+                            {/* Filters & Action */}
+                            <div className="flex flex-wrap gap-4 w-full lg:w-auto items-center justify-end">
+                                <div className="flex items-center gap-2 text-[#a8a29e] text-sm font-bold uppercase tracking-wider">
+                                    <Filter size={16} /> Filters:
+                                </div>
+
+                                <select 
+                                    className="bg-[#0c0a09] border border-[#44403c] px-3 py-2 rounded text-[#e7e5e4] focus:border-[#d4af37] outline-none text-sm"
+                                    value={filterType}
+                                    onChange={(e) => setFilterType(e.target.value)}
+                                >
+                                    <option value="all">All Types</option>
+                                    <option value="quiz">Quiz</option>
+                                    <option value="coding">Coding</option>
+                                    <option value="debug">Debug</option>
+                                </select>
+
+                                <select 
+                                    className="bg-[#0c0a09] border border-[#44403c] px-3 py-2 rounded text-[#e7e5e4] focus:border-[#d4af37] outline-none text-sm"
+                                    value={filterDifficulty}
+                                    onChange={(e) => setFilterDifficulty(e.target.value)}
+                                >
+                                    <option value="all">All Difficulties</option>
+                                    <option value="easy">Easy</option>
+                                    <option value="medium">Medium</option>
+                                    <option value="hard">Hard</option>
+                                </select>
+
+                                {userSection ? (
+                                    <div className="bg-[#0c0a09] border border-[#d4af37]/30 px-3 py-2 rounded text-[#d4af37] text-sm font-bold flex items-center gap-2">
+                                        <Layers size={14} /> Section {userSection}
+                                    </div>
+                                ) : (
+                                    <select 
+                                        className="bg-[#0c0a09] border border-[#44403c] px-3 py-2 rounded text-[#e7e5e4] focus:border-[#d4af37] outline-none text-sm"
+                                        value={filterSection}
+                                        onChange={(e) => setFilterSection(e.target.value)}
+                                    >
+                                        <option value="all">All Sections</option>
+                                        <option value="A">Section A</option>
+                                        <option value="B">Section B</option>
+                                    </select>
+                                )}
+
+                                <button 
+                                    onClick={handleOpenModal}
+                                    className="flex items-center gap-2 bg-[#2c241b] text-[#d4af37] px-4 py-2 rounded border border-[#d4af37]/50 hover:bg-[#d4af37] hover:text-[#1c1917] transition-all duration-300 font-bold uppercase tracking-widest text-xs"
+                                >
+                                    <Plus size={16} /> Create Assignment
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                {/* Task List Table */}
-                <div className="max-w-7xl w-full px-6 py-6">
-                    <div className="bg-[#292524] p-1 rounded-sm border border-[#44403c] shadow-lg">
+                {/* Task List - Desktop: Table, Mobile: Cards */}
+                <div className="max-w-7xl w-full px-3 sm:px-4 md:px-6 py-4 md:py-6">
+                    {/* Desktop Table */}
+                    <div className="hidden md:block bg-[#292524] p-1 rounded-sm border border-[#44403c] shadow-lg">
                         <div className="overflow-x-auto">
                             <table className="w-full text-left border-collapse">
                                 <thead>
                                     <tr className="bg-[#0c0a09] text-[#d4af37] uppercase text-sm tracking-widest border-b border-[#44403c]">
-                                        <th className="p-4 font-bold">Title</th>
-                                        <th className="p-4 font-bold">Type</th>
-                                        <th className="p-4 font-bold">Section</th>
-                                        <th className="p-4 font-bold">Difficulty</th>
-                                        <th className="p-4 font-bold">Due Date</th>
-                                        <th className="p-4 font-bold text-center">Actions</th>
+                                        <th className="p-3 md:p-4 font-bold">Title</th>
+                                        <th className="p-3 md:p-4 font-bold">Type</th>
+                                        <th className="p-3 md:p-4 font-bold">Section</th>
+                                        <th className="p-3 md:p-4 font-bold">Difficulty</th>
+                                        <th className="p-3 md:p-4 font-bold">Due Date</th>
+                                        <th className="p-3 md:p-4 font-bold text-center">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-[#44403c]">
                                     {filteredTasks.map((task) => (
                                         <tr key={task.id} className="hover:bg-[#0c0a09]/50 transition-colors bg-[#1c1917]">
-                                            <td className="p-4 font-medium text-[#e7e5e4] flex items-center gap-3">
+                                            <td className="p-3 md:p-4 font-medium text-[#e7e5e4] flex items-center gap-3">
                                                 <div className="p-2 bg-[#0c0a09] rounded-full border border-[#44403c]">
                                                     {task.type === 'quiz' && <Scroll size={16} className="text-[#fbbf24]" />}
                                                     {task.type === 'coding' && <Brain size={16} className="text-[#2dd4bf]" />}
@@ -387,22 +473,22 @@ export default function AssignmentandChallenges() {
                                                 </div>
                                                 {task.title}
                                             </td>
-                                            <td className="p-4 text-[#a8a29e] uppercase text-xs font-bold tracking-wider">
+                                            <td className="p-3 md:p-4 text-[#a8a29e] uppercase text-xs font-bold tracking-wider">
                                                 {task.type}
                                                 {task.type === 'quiz' && task.subtype && (
                                                     <span className="ml-2 opacity-60 text-[10px]">({task.subtype})</span>
                                                 )}
                                             </td>
-                                            <td className="p-4 text-[#e7e5e4]">{task.section}</td>
-                                            <td className="p-4">
+                                            <td className="p-3 md:p-4 text-[#e7e5e4]">{task.section}</td>
+                                            <td className="p-3 md:p-4">
                                                 <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider border ${ 
                                                     task.difficulty === 'hard' ? 'text-[#ef4444] border-[#ef4444]/30 bg-[#ef4444]/10' :
                                                     task.difficulty === 'medium' ? 'text-[#fbbf24] border-[#fbbf24]/30 bg-[#fbbf24]/10' :
                                                     'text-[#22c55e] border-[#22c55e]/30 bg-[#22c55e]/10'
                                                 }`}>{task.difficulty}</span>
                                             </td>
-                                            <td className="p-4 text-[#a8a29e] font-mono text-sm">{task.dueDateFormatted}</td>
-                                            <td className="p-4 flex justify-center gap-3">
+                                            <td className="p-3 md:p-4 text-[#a8a29e] font-mono text-sm">{task.dueDateFormatted}</td>
+                                            <td className="p-3 md:p-4 flex justify-center gap-3">
                                                 <button 
                                                     onClick={() => handleViewTask(task)} 
                                                     className="text-[#a8a29e] hover:text-[#2dd4bf] transition-colors p-2 hover:bg-[#292524] rounded"
@@ -445,36 +531,110 @@ export default function AssignmentandChallenges() {
                             </table>
                         </div>
                     </div>
+
+                    {/* Mobile Cards */}
+                    <div className="md:hidden space-y-3">
+                        {filteredTasks.map((task) => (
+                            <div key={task.id} className="bg-[#292524] rounded border border-[#44403c] overflow-hidden">
+                                {/* Card Header */}
+                                <div className="p-4 border-b border-[#44403c] bg-[#0c0a09]/50">
+                                    <div className="flex items-start justify-between gap-3">
+                                        <div className="flex items-start gap-3 flex-1 min-w-0">
+                                            <div className="p-2 bg-[#1c1917] rounded-full border border-[#44403c] flex-shrink-0">
+                                                {task.type === 'quiz' && <Scroll size={18} className="text-[#fbbf24]" />}
+                                                {task.type === 'coding' && <Brain size={18} className="text-[#2dd4bf]" />}
+                                                {task.type === 'debug' && <Bug size={18} className="text-[#a855f7]" />}
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <h3 className="font-bold text-[#e7e5e4] text-base break-words">{task.title}</h3>
+                                                <div className="flex flex-wrap gap-2 mt-2">
+                                                    <span className="text-[#a8a29e] uppercase text-[10px] font-bold tracking-wider bg-[#1c1917] px-2 py-1 rounded">
+                                                        {task.type}
+                                                    </span>
+                                                    <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider border ${ 
+                                                        task.difficulty === 'hard' ? 'text-[#ef4444] border-[#ef4444]/30 bg-[#ef4444]/10' :
+                                                        task.difficulty === 'medium' ? 'text-[#fbbf24] border-[#fbbf24]/30 bg-[#fbbf24]/10' :
+                                                        'text-[#22c55e] border-[#22c55e]/30 bg-[#22c55e]/10'
+                                                    }`}>{task.difficulty}</span>
+                                                    <span className="text-[#a8a29e] uppercase text-[10px] font-bold tracking-wider bg-[#1c1917] px-2 py-1 rounded">
+                                                        Sec {task.section}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="mt-3 text-[#57534e] text-xs font-mono">
+                                        Due: {task.dueDateFormatted}
+                                    </div>
+                                </div>
+
+                                {/* Card Actions */}
+                                <div className="p-3 flex gap-2">
+                                    <button 
+                                        onClick={() => handleViewTask(task)}
+                                        className="flex-1 flex items-center justify-center gap-2 bg-[#0c0a09] text-[#2dd4bf] py-2.5 px-3 rounded border border-[#44403c] hover:border-[#2dd4bf] transition-all text-xs font-bold uppercase tracking-wider"
+                                    >
+                                        <Eye size={14} /> View
+                                    </button>
+                                    <button 
+                                        onClick={() => handleGradeTask(task)}
+                                        className="flex-1 flex items-center justify-center gap-2 bg-[#0c0a09] text-[#fbbf24] py-2.5 px-3 rounded border border-[#44403c] hover:border-[#fbbf24] transition-all text-xs font-bold uppercase tracking-wider"
+                                    >
+                                        <GraduationCap size={14} /> Grade
+                                    </button>
+                                    <button 
+                                        onClick={() => handleEditTask(task)}
+                                        className="flex items-center justify-center gap-2 bg-[#0c0a09] text-[#d4af37] py-2.5 px-3 rounded border border-[#44403c] hover:border-[#d4af37] transition-all"
+                                    >
+                                        <Edit2 size={14} />
+                                    </button>
+                                    <button 
+                                        onClick={() => handleDeleteTask(task.id)}
+                                        className="flex items-center justify-center gap-2 bg-[#0c0a09] text-[#ef4444] py-2.5 px-3 rounded border border-[#44403c] hover:border-[#ef4444] transition-all"
+                                    >
+                                        <Trash2 size={14} />
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
+                        {filteredTasks.length === 0 && (
+                            <div className="bg-[#292524] p-8 rounded border border-[#44403c] text-center text-[#57534e] italic text-sm">
+                                {tasks.length === 0 ? "No active assignments found. Create one to begin." : "No assignments match your filters."}
+                            </div>
+                        )}
+                    </div>
                 </div>
 
                 {/* Create/Edit Assignment Modal */}
                 {isModalOpen && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm">
-                        <div className="relative w-full max-w-5xl bg-[#1c1917] rounded-sm border-2 border-[#44403c] shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/90 backdrop-blur-sm">
+                        <div className="relative w-full max-w-5xl bg-[#1c1917] rounded-sm border-2 border-[#44403c] shadow-2xl flex flex-col max-h-[95vh] sm:max-h-[90vh] overflow-hidden">
                             {/* Modal Header */}
-                            <div className="flex items-center justify-between p-6 border-b border-[#44403c] bg-[#0c0a09]">
-                                <h3 className="text-2xl font-bold text-[#d4af37] uppercase tracking-widest flex items-center gap-3">
-                                    <Scroll size={24} /> {editingTask ? "Edit Assignment" : "New Assignment"}
+                            <div className="flex items-center justify-between p-3 sm:p-4 md:p-6 border-b border-[#44403c] bg-[#0c0a09]">
+                                <h3 className="text-base sm:text-lg md:text-2xl font-bold text-[#d4af37] uppercase tracking-wider md:tracking-widest flex items-center gap-2 md:gap-3">
+                                    <Scroll size={20} className="sm:w-6 sm:h-6" /> {editingTask ? "Edit Assignment" : "New Assignment"}
                                 </h3>
-                                <button onClick={handleCloseModal} className="text-[#a8a29e] hover:text-[#ef4444]"><X size={24} /></button>
+                                <button onClick={handleCloseModal} className="text-[#a8a29e] hover:text-[#ef4444] p-1"><X size={20} className="sm:w-6 sm:h-6" /></button>
                             </div>
-                            {/* ... (rest of Create/Edit modal) ... */}
-                            <div className="w-full bg-[#292524] border-b border-[#44403c] p-4 flex justify-center items-center gap-4">
+                            
+                            {/* Step Indicator */}
+                            <div className="w-full bg-[#292524] border-b border-[#44403c] p-3 sm:p-4 flex justify-center items-center gap-3 sm:gap-4">
                                 <StepIndicator step={1} currentStep={currentStep} label="Details" />
-                                <div className={`h-0.5 w-16 transition-colors duration-500 ${currentStep >= 2 ? "bg-[#d4af37]" : "bg-[#44403c]"}`}></div>
+                                <div className={`h-0.5 w-8 md:w-16 transition-colors duration-500 ${currentStep >= 2 ? "bg-[#d4af37]" : "bg-[#44403c]"}`}></div>
                                 <StepIndicator step={2} currentStep={currentStep} label="Configuration" />
                             </div>
-                            <div className="p-8 overflow-y-auto custom-scrollbar flex-1">
+
+                            <div className="p-3 sm:p-4 md:p-8 overflow-y-auto custom-scrollbar flex-1">
                                 {currentStep === 1 ? (
-                                    <div className="space-y-6 animate-fade-in">
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div className="space-y-4 sm:space-y-6 animate-fade-in">
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
                                             <div className="space-y-2">
                                                 <label className="text-xs font-bold text-[#a8a29e] uppercase tracking-widest">Assignment Title</label>
-                                                <input className="w-full bg-[#0c0a09] border border-[#44403c] p-3 rounded text-[#e7e5e4] focus:border-[#d4af37] outline-none" value={formData.title} onChange={(e) => setFormData({...formData, title: e.target.value})} placeholder="Enter title..." />
+                                                <input className="w-full bg-[#0c0a09] border border-[#44403c] p-2.5 sm:p-3 rounded text-[#e7e5e4] text-sm sm:text-base focus:border-[#d4af37] outline-none" value={formData.title} onChange={(e) => setFormData({...formData, title: e.target.value})} placeholder="Enter title..." />
                                             </div>
                                             <div className="space-y-2">
                                                 <label className="text-xs font-bold text-[#a8a29e] uppercase tracking-widest">Difficulty</label>
-                                                <select className="w-full bg-[#0c0a09] border border-[#44403c] p-3 rounded text-[#e7e5e4] focus:border-[#d4af37] outline-none" value={formData.difficulty} onChange={(e) => setFormData({...formData, difficulty: e.target.value})}>
+                                                <select className="w-full bg-[#0c0a09] border border-[#44403c] p-2.5 sm:p-3 rounded text-[#e7e5e4] text-sm sm:text-base focus:border-[#d4af37] outline-none" value={formData.difficulty} onChange={(e) => setFormData({...formData, difficulty: e.target.value})}>
                                                     <option value="easy">Easy</option>
                                                     <option value="medium">Medium</option>
                                                     <option value="hard">Hard</option>
@@ -482,38 +642,48 @@ export default function AssignmentandChallenges() {
                                             </div>
                                             <div className="space-y-2">
                                                 <label className="text-xs font-bold text-[#a8a29e] uppercase tracking-widest">Section</label>
-                                                <select className="w-full bg-[#0c0a09] border border-[#44403c] p-3 rounded text-[#e7e5e4] focus:border-[#d4af37] outline-none" value={formData.section} onChange={(e) => setFormData({...formData, section: e.target.value})}>
-                                                    <option value="A">Section A</option>
-                                                    <option value="B">Section B</option>
-                                                </select>
+                                                {userSection ? (
+                                                    <div className="w-full bg-[#0c0a09]/50 border border-[#44403c] p-2.5 sm:p-3 rounded text-[#d4af37] font-bold text-sm sm:text-base">
+                                                        Section {userSection}
+                                                    </div>
+                                                ) : (
+                                                    <select 
+                                                        className="w-full bg-[#0c0a09] border border-[#44403c] p-2.5 sm:p-3 rounded text-[#e7e5e4] text-sm sm:text-base focus:border-[#d4af37] outline-none"
+                                                        value={formData.section} 
+                                                        onChange={(e) => setFormData({...formData, section: e.target.value})}
+                                                    >
+                                                        <option value="A">Section A</option>
+                                                        <option value="B">Section B</option>
+                                                    </select>
+                                                )}
                                             </div>
                                             <div className="space-y-2">
                                                 <label className="text-xs font-bold text-[#a8a29e] uppercase tracking-widest">Due Date & Time</label>
-                                                <input type="datetime-local" className="w-full bg-[#0c0a09] border border-[#44403c] p-3 rounded text-[#e7e5e4] focus:border-[#d4af37] outline-none scheme-dark" value={formData.dueDate} onChange={(e) => setFormData({...formData, dueDate: e.target.value})} />
+                                                <input type="datetime-local" className="w-full bg-[#0c0a09] border border-[#44403c] p-2.5 sm:p-3 rounded text-[#e7e5e4] text-sm sm:text-base focus:border-[#d4af37] outline-none" value={formData.dueDate} onChange={(e) => setFormData({...formData, dueDate: e.target.value})} />
                                             </div>
                                         </div>
-                                        <div className="pt-6 border-t border-[#44403c]">
-                                            <label className="text-xs font-bold text-[#a8a29e] uppercase tracking-widest mb-4 block">Select Challenge Type</label>
-                                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                                <ChallengeTypeOption label="Quiz" icon={<Scroll size={24} />} selected={formData.type === "quiz"} onClick={() => setFormData({...formData, type: "quiz"})} />
-                                                <ChallengeTypeOption label="Debug" icon={<Bug size={24} />} selected={formData.type === "debug"} onClick={() => setFormData({...formData, type: "debug"})} />
-                                                <ChallengeTypeOption label="Coding" icon={<Brain size={24} />} selected={formData.type === "coding"} onClick={() => setFormData({...formData, type: "coding"})} />
+                                        <div className="pt-4 sm:pt-6 border-t border-[#44403c]">
+                                            <label className="text-xs font-bold text-[#a8a29e] uppercase tracking-widest mb-3 sm:mb-4 block">Select Challenge Type</label>
+                                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+                                                <ChallengeTypeOption label="Quiz" icon={<Scroll size={20} className="sm:w-6 sm:h-6" />} selected={formData.type === "quiz"} onClick={() => setFormData({...formData, type: "quiz"})} />
+                                                <ChallengeTypeOption label="Debug" icon={<Bug size={20} className="sm:w-6 sm:h-6" />} selected={formData.type === "debug"} onClick={() => setFormData({...formData, type: "debug"})} />
+                                                <ChallengeTypeOption label="Coding" icon={<Brain size={20} className="sm:w-6 sm:h-6" />} selected={formData.type === "coding"} onClick={() => setFormData({...formData, type: "coding"})} />
                                             </div>
                                         </div>
-                                        <button onClick={handleNextStep} disabled={!formData.type || !formData.title || !formData.dueDate} className="w-full bg-[#2c241b] text-[#d4af37] py-4 rounded font-bold uppercase tracking-widest border border-[#d4af37]/50 hover:bg-[#d4af37] hover:text-[#1c1917] transition-all disabled:opacity-50 disabled:cursor-not-allowed">Next: Configure {formData.type || "Challenge"}</button>
+                                        <button onClick={handleNextStep} disabled={!formData.type || !formData.title || !formData.dueDate} className="w-full bg-[#2c241b] text-[#d4af37] py-3 sm:py-4 rounded font-bold uppercase tracking-wider sm:tracking-widest text-sm sm:text-base border border-[#d4af37]/50 hover:bg-[#d4af37] hover:text-[#1c1917] transition-all disabled:opacity-50 disabled:cursor-not-allowed">Next: Configure {formData.type || "Challenge"}</button>
                                     </div>
                                 ) : (
-                                    <div className="space-y-6 animate-fade-in">
-                                        <div className="flex justify-between items-center mb-4">
-                                            <h4 className="text-xl font-bold text-[#e7e5e4] uppercase tracking-wider">Configuring {challengeType}</h4>
-                                            <button onClick={() => setCurrentStep(1)} className="text-[#a8a29e] hover:text-[#d4af37] text-sm underline uppercase tracking-wide">Back to Details</button>
+                                    <div className="space-y-4 sm:space-y-6 animate-fade-in">
+                                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-0 mb-4">
+                                            <h4 className="text-lg sm:text-xl font-bold text-[#e7e5e4] uppercase tracking-wider">Configuring {challengeType}</h4>
+                                            <button onClick={() => setCurrentStep(1)} className="text-[#a8a29e] hover:text-[#d4af37] text-xs sm:text-sm underline uppercase tracking-wide">Back to Details</button>
                                         </div>
-                                        <div className="border border-[#44403c] p-4 rounded bg-[#0c0a09]/50">
+                                        <div className="border border-[#44403c] p-3 sm:p-4 rounded bg-[#0c0a09]/50">
                                             {challengeType === "quiz" && <Quiz data={quizData} setData={setQuizData} readOnly={!!editingTask} />}
                                             {challengeType === "coding" && <Coding data={codingData} setData={setCodingData} />}
                                             {challengeType === "debug" && <Debug data={debugData} setData={setDebugData} />}
                                         </div>
-                                        <button onClick={handleSaveTask} className="w-full bg-[#d4af37] text-[#0c0a09] py-4 rounded font-bold uppercase tracking-widest hover:bg-[#fbbf24] transition-all shadow-lg flex items-center justify-center gap-2"><Save size={20} /> {editingTask ? "Update Assignment" : "Save & Publish Assignment"}</button>
+                                        <button onClick={handleSaveTask} className="w-full bg-[#d4af37] text-[#0c0a09] py-3 sm:py-4 rounded font-bold uppercase tracking-wider sm:tracking-widest text-sm sm:text-base hover:bg-[#fbbf24] transition-all shadow-lg flex items-center justify-center gap-2"><Save size={18} className="sm:w-5 sm:h-5" /> {editingTask ? "Update Assignment" : "Save & Publish Assignment"}</button>
                                     </div>
                                 )}
                             </div>
@@ -523,70 +693,71 @@ export default function AssignmentandChallenges() {
 
                 {/* VIEW TASK MODAL */}
                 {viewingTask && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/95 backdrop-blur-sm">
-                        <div className="relative w-full max-w-4xl bg-[#1c1917] rounded-sm border-2 border-[#44403c] shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
-                            <div className="flex items-center justify-between p-6 border-b border-[#44403c] bg-[#0c0a09]">
-                                <div>
-                                    <h3 className="text-2xl font-bold text-[#d4af37] uppercase tracking-widest flex items-center gap-3">
-                                        {viewingTask.type === "quiz" && <Scroll size={24} />}
-                                        {viewingTask.type === "coding" && <Brain size={24} />}
-                                        {viewingTask.type === "debug" && <Bug size={24} />}
-                                        {viewingTask.title}
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/95 backdrop-blur-sm">
+                        <div className="relative w-full max-w-4xl bg-[#1c1917] rounded-sm border-2 border-[#44403c] shadow-2xl flex flex-col max-h-[95vh] sm:max-h-[90vh] overflow-hidden">
+                            <div className="flex items-center justify-between p-3 sm:p-4 md:p-6 border-b border-[#44403c] bg-[#0c0a09]">
+                                <div className="flex-1 min-w-0 mr-2">
+                                    <h3 className="text-base sm:text-xl md:text-2xl font-bold text-[#d4af37] uppercase tracking-wider md:tracking-widest flex items-center gap-2 md:gap-3 break-words">
+                                        {viewingTask.type === "quiz" && <Scroll size={20} className="flex-shrink-0 sm:w-6 sm:h-6" />}
+                                        {viewingTask.type === "coding" && <Brain size={20} className="flex-shrink-0 sm:w-6 sm:h-6" />}
+                                        {viewingTask.type === "debug" && <Bug size={20} className="flex-shrink-0 sm:w-6 sm:h-6" />}
+                                        <span className="break-words">{viewingTask.title}</span>
                                     </h3>
-                                    <p className="text-[#a8a29e] text-xs mt-1 uppercase tracking-wider">{viewingTask.type} • {viewingTask.section} • {viewingTask.difficulty} • Due: {viewingTask.dueDateFormatted}</p>
+                                    <p className="text-[#a8a29e] text-[10px] sm:text-xs mt-1 uppercase tracking-wider">{viewingTask.type} • {viewingTask.section} • {viewingTask.difficulty} • Due: {viewingTask.dueDateFormatted}</p>
                                 </div>
-                                <button onClick={() => setViewingTask(null)} className="text-[#a8a29e] hover:text-[#ef4444]"><X size={24} /></button>
+                                <button onClick={() => setViewingTask(null)} className="text-[#a8a29e] hover:text-[#ef4444] p-1 flex-shrink-0"><X size={20} className="sm:w-6 sm:h-6" /></button>
                             </div>
-                            <div className="p-8 overflow-y-auto custom-scrollbar flex-1 bg-[#1c1917]">
+                            <div className="p-3 sm:p-4 md:p-8 overflow-y-auto custom-scrollbar flex-1 bg-[#1c1917]">
                                 {(viewingTask.type === "coding" || viewingTask.type === "debug") && (
-                                    <div className="space-y-6">
-                                        <div className="bg-[#0c0a09] p-6 rounded border border-[#292524]">
-                                            <h4 className="text-[#d4af37] font-bold uppercase tracking-widest text-sm mb-4 border-b border-[#292524] pb-2">Instructions</h4>
-                                            <p className="text-[#e7e5e4] whitespace-pre-wrap font-serif italic text-lg leading-relaxed">{viewingTask.instruction}</p>
+                                    <div className="space-y-4 sm:space-y-6">
+                                        <div className="bg-[#0c0a09] p-4 sm:p-6 rounded border border-[#292524]">
+                                            <h4 className="text-[#d4af37] font-bold uppercase tracking-widest text-xs sm:text-sm mb-3 sm:mb-4 border-b border-[#292524] pb-2">Instructions</h4>
+                                            <p className="text-[#e7e5e4] whitespace-pre-wrap font-serif italic text-sm sm:text-base md:text-lg leading-relaxed">{viewingTask.instruction}</p>
                                         </div>
                                         {viewingTask.type === "debug" && viewingTask.code && (
                                             <div className="bg-[#0c0a09] p-2 rounded border border-[#292524]">
                                                 <h4 className="text-[#a8a29e] font-bold uppercase tracking-widest text-xs mb-2 px-2">Initial Code</h4>
-                                                <Editor height="300px" defaultLanguage="javascript" theme="vs-dark" value={viewingTask.code} options={{ readOnly: true, fontSize: 14, fontFamily: 'monospace', minimap: { enabled: false }, scrollBeyondLastLine: false }} />
+                                                <Editor height="250px" defaultLanguage="javascript" theme="vs-dark" value={viewingTask.code} options={{ readOnly: true, fontSize: 12, fontFamily: 'monospace', minimap: { enabled: false }, scrollBeyondLastLine: false }} />
                                             </div>
                                         )}
                                     </div>
                                 )}
                                 {viewingTask.type === "quiz" && (
-                                    <div className="space-y-6">
+                                    <div className="space-y-4 sm:space-y-6">
                                         <div className="flex items-center gap-2 mb-4">
-                                            <span className="bg-[#2c241b] text-[#d4af37] px-3 py-1 text-xs font-bold uppercase tracking-wider rounded border border-[#d4af37]/30">{viewingTask.subtype || "MCQ"}</span>
-                                            <span className="text-[#57534e] text-xs uppercase tracking-wider font-bold">{viewingTask.questions?.length || 0} Questions</span>
+                                            <span className="bg-[#2c241b] text-[#d4af37] px-2 sm:px-3 py-1 text-[10px] sm:text-xs font-bold uppercase tracking-wider rounded border border-[#d4af37]/30">{viewingTask.subtype || "MCQ"}</span>
+                                            <span className="text-[#57534e] text-[10px] sm:text-xs uppercase tracking-wider font-bold">{viewingTask.questions?.length || 0} Questions</span>
                                         </div>
-                                        <div className="space-y-4">
+                                        <div className="space-y-3 sm:space-y-4">
                                             {viewingTask.questions?.map((q, idx) => (
-                                                <div key={idx} className="bg-[#0c0a09] p-6 rounded border border-[#292524] relative overflow-hidden group">
+                                                <div key={idx} className="bg-[#0c0a09] p-4 sm:p-6 rounded border border-[#292524] relative overflow-hidden group">
                                                     <div className="absolute top-0 left-0 w-1 h-full bg-[#d4af37]/50"></div>
-                                                    <p className="font-bold text-[#e7e5e4] mb-4 flex gap-3 text-lg italic"><span className="text-[#d4af37]">Q{idx + 1}.</span>{q.text}</p>
+                                                    <p className="font-bold text-[#e7e5e4] mb-3 sm:mb-4 flex gap-2 sm:gap-3 text-sm sm:text-base md:text-lg italic"><span className="text-[#d4af37] flex-shrink-0">Q{idx + 1}.</span><span className="break-words">{q.text}</span></p>
                                                     {viewingTask.subtype === "mcq" && (
-                                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 ml-8">
+                                                        <div className="grid grid-cols-1 gap-2 sm:gap-3 ml-0 sm:ml-8">
                                                             {q.choices?.map((choice, cIdx) => (
-                                                                <div key={cIdx} className={`px-4 py-3 rounded border text-sm flex items-center gap-3 ${cIdx === q.correctIndex ? "bg-[#d4af37]/10 border-[#d4af37] text-[#d4af37] font-bold" : "bg-[#1c1917] border-[#292524] text-[#a8a29e]"}`}>
-                                                                    <span className="text-xs opacity-50">{String.fromCharCode(65 + cIdx)}.</span>{choice}
-                                                                    {cIdx === q.correctIndex && <CheckCircle2 size={16} className="ml-auto" />}
+                                                                <div key={cIdx} className={`px-3 sm:px-4 py-2 sm:py-3 rounded border text-xs sm:text-sm flex items-center gap-2 sm:gap-3 break-words ${cIdx === q.correctIndex ? "bg-[#d4af37]/10 border-[#d4af37] text-[#d4af37] font-bold" : "bg-[#1c1917] border-[#292524] text-[#a8a29e]"}`}>
+                                                                    <span className="text-[10px] sm:text-xs opacity-50 flex-shrink-0">{String.fromCharCode(65 + cIdx)}.</span>
+                                                                    <span className="flex-1">{choice}</span>
+                                                                    {cIdx === q.correctIndex && <CheckCircle2 size={14} className="flex-shrink-0 sm:w-4 sm:h-4" />}
                                                                 </div>
                                                             ))}
                                                         </div>
                                                     )}
                                                     {viewingTask.subtype === "tf" && (
-                                                        <div className="ml-8 flex gap-4">
+                                                        <div className="ml-0 sm:ml-8 flex gap-3 sm:gap-4">
                                                             {["True", "False"].map((opt) => (
-                                                                <div key={opt} className={`px-6 py-2 rounded border text-sm font-bold uppercase tracking-wider ${q.correctAnswer === opt ? (opt === "True" ? "bg-[#2dd4bf]/10 border-[#2dd4bf] text-[#2dd4bf]" : "bg-[#ef4444]/10 border-[#ef4444] text-[#ef4444]") : "bg-[#1c1917] border-[#292524] text-[#57534e] opacity-50"}`}>{opt}</div>
+                                                                <div key={opt} className={`px-4 sm:px-6 py-1.5 sm:py-2 rounded border text-xs sm:text-sm font-bold uppercase tracking-wider ${q.correctAnswer === opt ? (opt === "True" ? "bg-[#2dd4bf]/10 border-[#2dd4bf] text-[#2dd4bf]" : "bg-[#ef4444]/10 border-[#ef4444] text-[#ef4444]") : "bg-[#1c1917] border-[#292524] text-[#57534e] opacity-50"}`}>{opt}</div>
                                                             ))}
                                                         </div>
                                                     )}
                                                     {viewingTask.subtype === "enum" && (
-                                                        <div className="ml-8 bg-[#1c1917] p-4 rounded border border-[#292524]">
-                                                            <p className="text-[#a8a29e] text-xs font-bold uppercase tracking-widest mb-2">Accepted Answers:</p>
-                                                            <ul className="list-disc list-inside text-[#e7e5e4] space-y-1">{q.answers?.map((ans, aIdx) => (<li key={aIdx}>{ans}</li>))}</ul>
+                                                        <div className="ml-0 sm:ml-8 bg-[#1c1917] p-3 sm:p-4 rounded border border-[#292524]">
+                                                            <p className="text-[#a8a29e] text-[10px] sm:text-xs font-bold uppercase tracking-widest mb-2">Accepted Answers:</p>
+                                                            <ul className="list-disc list-inside text-[#e7e5e4] space-y-1 text-xs sm:text-sm">{q.answers?.map((ans, aIdx) => (<li key={aIdx} className="break-words">{ans}</li>))}</ul>
                                                         </div>
                                                     )}
-                                                    {viewingTask.subtype === "paragraph" && <div className="ml-8"><p className="text-[#57534e] text-sm italic border-l-2 border-[#292524] pl-4 py-2">(Open-ended response expected)</p></div>}
+                                                    {viewingTask.subtype === "paragraph" && <div className="ml-0 sm:ml-8"><p className="text-[#57534e] text-xs sm:text-sm italic border-l-2 border-[#292524] pl-3 sm:pl-4 py-2">(Open-ended response expected)</p></div>}
                                                 </div>
                                             ))}
                                         </div>
@@ -604,22 +775,18 @@ export default function AssignmentandChallenges() {
     );
 }
 
-// Grading Modal Component
+// Grading Modal Component - Made Responsive
 function GradingModal({ task, onClose, initialStudentId }) {
     const { gradebookData, loading, updateGrade } = useGradebook(task.id, task.section);
-    
-    // key: studentId, value: { score, feedback }
     const [grades, setScores] = useState({});
     const [selectedStudentId, setSelectedStudentId] = useState(null);
     const [studentSearchQuery, setStudentSearchQuery] = useState("");
+    const [showStudentList, setShowStudentList] = useState(false); // For mobile toggle
 
-    // Initialize local state when data loads
     useEffect(() => {
         if (gradebookData && gradebookData.length > 0) {
             setScores(prev => {
-                // Check if any student is missing from the current grades state
                 const needsUpdate = gradebookData.some(item => !prev[item.student.uid]);
-                
                 if (!needsUpdate) return prev;
 
                 const newGrades = { ...prev };
@@ -634,18 +801,15 @@ function GradingModal({ task, onClose, initialStudentId }) {
                 return newGrades;
             });
             
-            // Set selected student only if none selected
             if (!selectedStudentId) {
-                 if (initialStudentId) {
-                     // Check if student exists in this section
-                     const found = gradebookData.find(item => item.student.uid === initialStudentId);
-                     if (found) setSelectedStudentId(initialStudentId);
-                     else setSelectedStudentId(gradebookData[0].student.uid);
-                 } else {
-                     // Default to first student in the list
-                     const firstSubmitted = gradebookData.find(s => s.status !== 'missing');
-                     setSelectedStudentId(firstSubmitted ? firstSubmitted.student.uid : gradebookData[0].student.uid);
-                 }
+                if (initialStudentId) {
+                    const found = gradebookData.find(item => item.student.uid === initialStudentId);
+                    if (found) setSelectedStudentId(initialStudentId);
+                    else setSelectedStudentId(gradebookData[0].student.uid);
+                } else {
+                    const firstSubmitted = gradebookData.find(s => s.status !== 'missing');
+                    setSelectedStudentId(firstSubmitted ? firstSubmitted.student.uid : gradebookData[0].student.uid);
+                }
             }
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -673,19 +837,15 @@ function GradingModal({ task, onClose, initialStudentId }) {
 
     const formatDate = (date) => {
         if (!date) return "-";
-        // Check if Firestore Timestamp (has toDate method)
         if (typeof date.toDate === 'function') {
             return date.toDate().toLocaleString('en-US', {
-                month: 'long',
+                month: 'short',
                 day: 'numeric',
                 year: 'numeric',
                 hour: '2-digit',
-                minute: '2-digit',
-                second: '2-digit',
-                hour12: true
+                minute: '2-digit'
             });
         }
-        // Handle native Date or ISO string
         try {
             return new Date(date).toLocaleString();
         } catch {
@@ -699,7 +859,6 @@ function GradingModal({ task, onClose, initialStudentId }) {
     const selectedItem = gradebookData.find(item => item.student.uid === selectedStudentId);
     const selectedGrade = grades[selectedStudentId] || { score: 0, feedback: "" };
 
-    // Sort the data: Submitted first, then Graded, then Missing. Alphabetical within groups.
     const sortedGradebook = [...gradebookData].sort((a, b) => {
         const priority = { submitted: 1, graded: 2, missing: 3 };
         const pA = priority[a.status] || 4;
@@ -709,29 +868,111 @@ function GradingModal({ task, onClose, initialStudentId }) {
         return a.student.lastName.localeCompare(b.student.lastName);
     });
 
+    const filteredStudents = sortedGradebook.filter(item => {
+        const fullName = `${item.student.firstName} ${item.student.lastName}`.toLowerCase();
+        const email = item.student.email.toLowerCase();
+        const query = studentSearchQuery.toLowerCase();
+        return fullName.includes(query) || email.includes(query);
+    });
+
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/95 backdrop-blur-sm">
-            <div className="relative w-full max-w-7xl bg-[#1c1917] rounded-sm border-2 border-[#44403c] shadow-2xl flex flex-col h-[90vh] overflow-hidden">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-4 bg-black/95 backdrop-blur-sm">
+            <div className="relative w-full h-full sm:h-[90vh] sm:max-w-7xl bg-[#1c1917] sm:rounded-sm border-0 sm:border-2 border-[#44403c] shadow-2xl flex flex-col overflow-hidden">
                 {/* Header */}
-                <div className="flex items-center justify-between p-6 border-b border-[#44403c] bg-[#0c0a09]">
-                    <div>
-                        <h3 className="text-2xl font-bold text-[#d4af37] uppercase tracking-widest flex items-center gap-3">
-                            <GraduationCap size={24} /> Gradebook: {task.title}
+                <div className="flex items-center justify-between p-3 sm:p-4 md:p-6 border-b border-[#44403c] bg-[#0c0a09]">
+                    <div className="flex-1 min-w-0 mr-2">
+                        <h3 className="text-base sm:text-xl md:text-2xl font-bold text-[#d4af37] uppercase tracking-wider md:tracking-widest flex items-center gap-2 md:gap-3">
+                            <GraduationCap size={20} className="flex-shrink-0 sm:w-6 sm:h-6" /> <span className="truncate">Gradebook: {task.title}</span>
                         </h3>
-                        <p className="text-[#a8a29e] text-xs mt-1 uppercase tracking-wider">
+                        <p className="text-[#a8a29e] text-[10px] sm:text-xs mt-1 uppercase tracking-wider">
                             Section {task.section}
                         </p>
                     </div>
-                    <button onClick={onClose} className="text-[#a8a29e] hover:text-[#ef4444]"><X size={24} /></button>
+                    <button onClick={onClose} className="text-[#a8a29e] hover:text-[#ef4444] p-1 flex-shrink-0"><X size={20} className="sm:w-6 sm:h-6" /></button>
+                </div>
+
+                {/* Mobile: Student Selector + Toggle */}
+                <div className="md:hidden border-b border-[#44403c] bg-[#0c0a09] p-3">
+                    <button 
+                        onClick={() => setShowStudentList(!showStudentList)}
+                        className="w-full flex items-center justify-between bg-[#1c1917] border border-[#44403c] p-3 rounded text-[#e7e5e4] hover:border-[#d4af37] transition-colors"
+                    >
+                        <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-[#0c0a09] flex items-center justify-center border border-[#44403c] text-[#a8a29e]">
+                                <User size={16} />
+                            </div>
+                            {selectedItem ? (
+                                <div className="text-left">
+                                    <p className="text-sm font-bold">{selectedItem.student.firstName} {selectedItem.student.lastName}</p>
+                                    <StatusBadge status={selectedItem.status} />
+                                </div>
+                            ) : (
+                                <span className="text-sm text-[#57534e]">Select a student</span>
+                            )}
+                        </div>
+                        <ChevronRight size={18} className={`text-[#57534e] transition-transform ${showStudentList ? 'rotate-90' : ''}`} />
+                    </button>
+
+                    {/* Mobile Student List Dropdown */}
+                    {showStudentList && (
+                        <div className="mt-3 bg-[#1c1917] border border-[#44403c] rounded max-h-[60vh] overflow-hidden flex flex-col animate-fade-in">
+                            <div className="p-3 border-b border-[#44403c] bg-[#0c0a09] sticky top-0 z-10 space-y-3">
+                                <div className="relative">
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[#a8a29e]" size={14} />
+                                    <input 
+                                        type="text"
+                                        placeholder="Search student..."
+                                        className="w-full bg-[#292524] border border-[#44403c] pl-9 pr-3 py-2 rounded text-[#e7e5e4] text-xs focus:border-[#d4af37] outline-none"
+                                        value={studentSearchQuery}
+                                        onChange={(e) => setStudentSearchQuery(e.target.value)}
+                                    />
+                                </div>
+                                <div className="flex justify-between items-center text-[10px] uppercase font-bold tracking-wider text-[#57534e]">
+                                    <span>Total: <span className="text-[#e7e5e4]">{totalStudents}</span></span>
+                                    <span>Submitted: <span className="text-[#d4af37]">{submittedCount}</span></span>
+                                </div>
+                            </div>
+                            <div className="overflow-y-auto divide-y divide-[#292524]">
+                                {filteredStudents.map((item, index, array) => {
+                                    const isFirstMissing = item.status === 'missing' && (index === 0 || array[index - 1].status !== 'missing');
+                                    return (
+                                        <div key={item.student.uid}>
+                                            {isFirstMissing && (
+                                                <div className="bg-[#292524] px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[#57534e] border-y border-[#44403c]">
+                                                    Not Submitted
+                                                </div>
+                                            )}
+                                            <div 
+                                                onClick={() => {
+                                                    setSelectedStudentId(item.student.uid);
+                                                    setShowStudentList(false);
+                                                }}
+                                                className={`p-3 cursor-pointer transition-colors flex items-center justify-between ${selectedStudentId === item.student.uid ? "bg-[#292524] border-l-4 border-[#d4af37]" : "hover:bg-[#0c0a09] border-l-4 border-transparent"}`}
+                                            >
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-8 h-8 rounded-full bg-[#0c0a09] flex items-center justify-center border border-[#44403c] text-[#a8a29e]">
+                                                        <User size={14} />
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-sm font-bold text-[#e7e5e4]">{item.student.firstName} {item.student.lastName}</p>
+                                                        <StatusBadge status={item.status} />
+                                                    </div>
+                                                </div>
+                                                <ChevronRight size={14} className={`text-[#57534e] ${selectedStudentId === item.student.uid ? "text-[#d4af37]" : ""}`} />
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 {/* Body - Split View */}
-                <div className="flex flex-1 overflow-hidden">
-                    {/* Left Sidebar: Student List */}
-                    <div className="w-1/3 border-r border-[#44403c] bg-[#0c0a09] overflow-y-auto custom-scrollbar flex flex-col">
-                        
-                        {/* Search & Summary Header */}
-                        <div className="p-4 border-b border-[#44403c] bg-[#0c0a09] sticky top-0 z-10 space-y-3">
+                <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
+                    {/* Desktop: Left Sidebar - Student List */}
+                    <div className="hidden md:flex w-full md:w-1/3 border-r border-[#44403c] bg-[#0c0a09] overflow-y-auto custom-scrollbar flex-col">
+                        <div className="p-3 md:p-4 border-b border-[#44403c] bg-[#0c0a09] sticky top-0 z-10 space-y-3">
                             <div className="relative">
                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[#a8a29e]" size={14} />
                                 <input 
@@ -750,13 +991,7 @@ function GradingModal({ task, onClose, initialStudentId }) {
 
                         {loading ? <div className="p-4"><Loader /></div> : (
                             <div className="divide-y divide-[#292524] flex-1">
-                                {sortedGradebook.filter(item => {
-                                    const fullName = `${item.student.firstName} ${item.student.lastName}`.toLowerCase();
-                                    const email = item.student.email.toLowerCase();
-                                    const query = studentSearchQuery.toLowerCase();
-                                    return fullName.includes(query) || email.includes(query);
-                                }).map((item, index, array) => {
-                                    // Check if we need a divider
+                                {filteredStudents.map((item, index, array) => {
                                     const isFirstMissing = item.status === 'missing' && (index === 0 || array[index - 1].status !== 'missing');
                                     
                                     return (
@@ -768,7 +1003,7 @@ function GradingModal({ task, onClose, initialStudentId }) {
                                             )}
                                             <div 
                                                 onClick={() => setSelectedStudentId(item.student.uid)}
-                                                className={`p-4 cursor-pointer transition-colors flex items-center justify-between ${selectedStudentId === item.student.uid ? "bg-[#292524] border-l-4 border-[#d4af37]" : "hover:bg-[#1c1917] border-l-4 border-transparent"}`}
+                                                className={`p-3 md:p-4 cursor-pointer transition-colors flex items-center justify-between ${selectedStudentId === item.student.uid ? "bg-[#292524] border-l-4 border-[#d4af37]" : "hover:bg-[#1c1917] border-l-4 border-transparent"}`}
                                             >
                                                 <div className="flex items-center gap-3">
                                                     <div className="w-8 h-8 rounded-full bg-[#1c1917] flex items-center justify-center border border-[#44403c] text-[#a8a29e]">
@@ -784,33 +1019,35 @@ function GradingModal({ task, onClose, initialStudentId }) {
                                         </div>
                                     );
                                 })}
-                                {sortedGradebook.length === 0 && <p className="p-8 text-center text-[#57534e] text-xs italic">No students match your search.</p>}
+                                {filteredStudents.length === 0 && <p className="p-8 text-center text-[#57534e] text-xs italic">No students match your search.</p>}
                             </div>
                         )}
                     </div>
 
                     {/* Right Panel: Grading Detail */}
-                    <div className="w-2/3 bg-[#1c1917] flex flex-col overflow-hidden">
+                    <div className="w-full md:w-2/3 bg-[#1c1917] flex flex-col overflow-hidden">
                         {selectedItem ? (
                             <>
                                 {/* Student Header Info */}
-                                <div className="p-6 border-b border-[#44403c] bg-[#1c1917] flex justify-between items-start">
-                                    <div>
-                                        <h4 className="text-xl font-bold text-[#e7e5e4]">{selectedItem.student.firstName} {selectedItem.student.lastName}</h4>
-                                        <p className="text-[#a8a29e] text-xs">{selectedItem.student.email}</p>
-                                    </div>
-                                    <div className="text-right">
-                                        <p className="text-[#57534e] text-xs uppercase tracking-wider font-bold mb-1">Submitted</p>
-                                        <p className="text-[#d4af37] font-mono text-sm">{formatDate(selectedItem.submittedAt)}</p>
+                                <div className="p-3 sm:p-4 md:p-6 border-b border-[#44403c] bg-[#1c1917]">
+                                    <div className="flex flex-col sm:flex-row justify-between items-start gap-3">
+                                        <div className="flex-1 min-w-0">
+                                            <h4 className="text-base sm:text-lg md:text-xl font-bold text-[#e7e5e4] break-words">{selectedItem.student.firstName} {selectedItem.student.lastName}</h4>
+                                            <p className="text-[#a8a29e] text-xs break-all">{selectedItem.student.email}</p>
+                                        </div>
+                                        <div className="text-left sm:text-right">
+                                            <p className="text-[#57534e] text-[10px] sm:text-xs uppercase tracking-wider font-bold mb-1">Submitted</p>
+                                            <p className="text-[#d4af37] font-mono text-xs sm:text-sm">{formatDate(selectedItem.submittedAt)}</p>
+                                        </div>
                                     </div>
                                 </div>
 
                                 {/* Submission Content */}
-                                <div className="flex-1 p-6 overflow-y-auto custom-scrollbar bg-[#0c0a09]/50">
+                                <div className="flex-1 p-3 sm:p-4 md:p-6 overflow-y-auto custom-scrollbar bg-[#0c0a09]/50">
                                     {selectedItem.status === "missing" ? (
                                         <div className="h-full flex flex-col items-center justify-center text-[#57534e] italic opacity-50">
-                                            <AlertCircle size={48} className="mb-4" />
-                                            <p>No submission available.</p>
+                                            <AlertCircle size={40} className="mb-3 sm:mb-4 sm:w-12 sm:h-12" />
+                                            <p className="text-sm sm:text-base">No submission available.</p>
                                         </div>
                                     ) : (
                                         <SubmissionDetailView 
@@ -822,37 +1059,41 @@ function GradingModal({ task, onClose, initialStudentId }) {
                                 </div>
 
                                 {/* Grading Footer */}
-                                <div className="p-6 border-t border-[#44403c] bg-[#1c1917]">
-                                    <div className="flex items-end gap-4">
+                                <div className="p-3 sm:p-4 md:p-6 border-t border-[#44403c] bg-[#1c1917]">
+                                    <div className="flex flex-col gap-3 sm:gap-4">
                                         <div className="flex-1">
                                             <label className="text-xs font-bold text-[#a8a29e] uppercase tracking-widest mb-1 block">Feedback</label>
                                             <input 
-                                                className="w-full bg-[#0c0a09] border border-[#44403c] p-3 rounded text-[#e7e5e4] focus:border-[#d4af37] outline-none transition-colors placeholder-[#292524]"
+                                                className="w-full bg-[#0c0a09] border border-[#44403c] p-2.5 sm:p-3 rounded text-[#e7e5e4] text-sm sm:text-base focus:border-[#d4af37] outline-none transition-colors placeholder-[#292524]"
                                                 placeholder="Enter feedback for student..."
                                                 value={selectedGrade.feedback}
                                                 onChange={(e) => handleGradeChange(selectedStudentId, "feedback", e.target.value)}
                                             />
                                         </div>
-                                        <div className="w-32">
-                                            <label className="text-xs font-bold text-[#a8a29e] uppercase tracking-widest mb-1 block">Score</label>
-                                            <input 
-                                                type="number"
-                                                className="w-full bg-[#0c0a09] border border-[#44403c] p-3 rounded text-[#d4af37] font-bold text-center focus:border-[#d4af37] outline-none"
-                                                value={selectedGrade.score}
-                                                onChange={(e) => handleGradeChange(selectedStudentId, "score", e.target.value)}
-                                            />
+                                        <div className="flex gap-3 sm:gap-4">
+                                            <div className="flex-1">
+                                                <label className="text-xs font-bold text-[#a8a29e] uppercase tracking-widest mb-1 block">Score</label>
+                                                <input 
+                                                    type="number"
+                                                    className="w-full bg-[#0c0a09] border border-[#44403c] p-2.5 sm:p-3 rounded text-[#d4af37] font-bold text-center text-sm sm:text-base focus:border-[#d4af37] outline-none"
+                                                    value={selectedGrade.score}
+                                                    onChange={(e) => handleGradeChange(selectedStudentId, "score", e.target.value)}
+                                                />
+                                            </div>
+                                            <div className="flex items-end">
+                                                <button 
+                                                    onClick={() => saveGrade(selectedStudentId, selectedItem.submissionId)}
+                                                    className="h-[42px] sm:h-[46px] px-4 sm:px-6 bg-[#2c241b] text-[#d4af37] font-bold uppercase tracking-wider sm:tracking-widest text-xs sm:text-sm rounded border border-[#d4af37]/50 hover:bg-[#d4af37] hover:text-[#1c1917] transition-all flex items-center justify-center gap-2"
+                                                >
+                                                    <Save size={16} className="sm:w-[18px] sm:h-[18px]" /> <span className="hidden sm:inline">Update</span><span className="sm:hidden">Save</span>
+                                                </button>
+                                            </div>
                                         </div>
-                                        <button 
-                                            onClick={() => saveGrade(selectedStudentId, selectedItem.submissionId)}
-                                            className="h-[46px] px-6 bg-[#2c241b] text-[#d4af37] font-bold uppercase tracking-widest rounded border border-[#d4af37]/50 hover:bg-[#d4af37] hover:text-[#1c1917] transition-all flex items-center gap-2"
-                                        >
-                                            <Save size={18} /> Update
-                                        </button>
                                     </div>
                                 </div>
                             </>
                         ) : (
-                            <div className="flex-1 flex items-center justify-center text-[#57534e]">
+                            <div className="flex-1 flex items-center justify-center text-[#57534e] p-4 text-center text-sm sm:text-base">
                                 Select a student to grade.
                             </div>
                         )}
@@ -865,21 +1106,21 @@ function GradingModal({ task, onClose, initialStudentId }) {
 
 function StatusBadge({ status }) {
     let styles = "bg-[#292524] text-[#a8a29e] border-[#44403c]";
-    let icon = <AlertCircle size={12} />;
+    let icon = <AlertCircle size={10} className="sm:w-3 sm:h-3" />;
 
     if (status === "submitted") {
-        styles = "bg-[#172554] text-[#60a5fa] border-[#1e3a8a]"; // Blue
-        icon = <CheckCircle2 size={12} />;
+        styles = "bg-[#172554] text-[#60a5fa] border-[#1e3a8a]";
+        icon = <CheckCircle2 size={10} className="sm:w-3 sm:h-3" />;
     } else if (status === "graded") {
-        styles = "bg-[#052e16] text-[#4ade80] border-[#14532d]"; // Green
-        icon = <CheckCircle size={12} />;
+        styles = "bg-[#052e16] text-[#4ade80] border-[#14532d]";
+        icon = <CheckCircle size={10} className="sm:w-3 sm:h-3" />;
     } else if (status === "missing") {
-        styles = "bg-[#450a0a] text-[#f87171] border-[#7f1d1d]"; // Red
-        icon = <X size={12} />;
+        styles = "bg-[#450a0a] text-[#f87171] border-[#7f1d1d]";
+        icon = <X size={10} className="sm:w-3 sm:h-3" />;
     }
 
     return (
-        <span className={`flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border ${styles} w-fit`}>
+        <span className={`flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-0.5 sm:py-1 rounded-full text-[9px] sm:text-[10px] font-bold uppercase tracking-wider border ${styles} w-fit`}>
             {icon} {status}
         </span>
     );
@@ -890,15 +1131,15 @@ function StepIndicator({ step, currentStep, label }) {
     const isCompleted = step < currentStep;
 
     return (
-        <div className="flex items-center gap-2">
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm border-2 transition-all ${ 
+        <div className="flex items-center gap-1.5 sm:gap-2">
+            <div className={`w-6 h-6 sm:w-8 sm:h-8 rounded-full flex items-center justify-center font-bold text-xs sm:text-sm border-2 transition-all ${ 
                 isActive ? "bg-[#d4af37] border-[#d4af37] text-[#0c0a09]" :
                 isCompleted ? "bg-[#2c241b] border-[#d4af37] text-[#d4af37]" :
                 "bg-[#0c0a09] border-[#44403c] text-[#57534e]"
             }`}>
-                {isCompleted ? <CheckCircle2 size={16} /> : step}
+                {isCompleted ? <CheckCircle2 size={14} className="sm:w-4 sm:h-4" /> : step}
             </div>
-            <span className={`uppercase text-xs font-bold tracking-wider ${ 
+            <span className={`uppercase text-[10px] sm:text-xs font-bold tracking-wider ${ 
                 isActive || isCompleted ? "text-[#e7e5e4]" : "text-[#57534e]"
             }`}>
                 {label}
@@ -911,14 +1152,14 @@ function ChallengeTypeOption({ label, icon, selected, onClick }) {
     return (
         <div 
             onClick={onClick}
-            className={`cursor-pointer flex items-center justify-center gap-3 p-6 rounded border-2 transition-all duration-300 ${ 
+            className={`cursor-pointer flex items-center justify-center gap-2 sm:gap-3 p-4 sm:p-6 rounded border-2 transition-all duration-300 ${ 
                 selected 
                 ? "bg-[#2c241b] border-[#d4af37] text-[#d4af37] shadow-[0_0_15px_rgba(212,175,55,0.1)]" 
                 : "bg-[#0c0a09] border-[#292524] text-[#57534e] hover:border-[#57534e] hover:text-[#a8a29e]"
             }`}
         >
             {icon}
-            <span className="font-bold uppercase tracking-wider">{label}</span>
+            <span className="font-bold uppercase tracking-wider text-sm sm:text-base">{label}</span>
         </div>
     )
 }

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Plus, Trash2, Edit2, Save, X, UserCog, ShieldAlert, Upload, Loader2, Image as ImageIcon, KeyRound, RefreshCw, Copy, Layers } from "lucide-react";
+import { Plus, Trash2, Edit2, Save, X, UserCog, ShieldAlert, Upload, Loader2, Image as ImageIcon, KeyRound, RefreshCw, Copy, Layers, Mail } from "lucide-react";
 import { db } from "../config/firebase.config";
 import { collection, onSnapshot, addDoc, deleteDoc, doc, updateDoc } from "firebase/firestore";
 import { initializeApp, deleteApp } from "firebase/app";
@@ -244,34 +244,37 @@ export default function UserManagement() {
     if (loading) return <Loader />;
 
     return (
-        <div className="min-h-full w-full flex flex-col items-center bg-[#1c1917] text-[#e7e5e4] font-serif relative">
+        <div className="min-h-screen w-full flex flex-col bg-[#1c1917] text-[#e7e5e4] font-serif relative">
              {/* Header */}
-             <div className="w-full bg-[#0c0a09] border-b-4 border-[#292524] py-10 px-6 shadow-2xl">
-                <div className="max-w-7xl mx-auto flex justify-between items-center">
+             <div className="w-full bg-[#0c0a09] border-b-4 border-[#292524] py-6 md:py-10 px-4 md:px-6 shadow-2xl sticky top-0 z-20">
+                <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                     <div>
-                        <h1 className="text-4xl font-bold tracking-[0.15em] uppercase text-[#d4af37]">
+                        <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold tracking-[0.15em] uppercase text-[#d4af37]">
                             User Management
                         </h1>
-                        <p className="text-[#a8a29e] mt-2 tracking-wide">Manage system administrators and teachers</p>
+                        <p className="text-xs md:text-sm text-[#a8a29e] mt-1 tracking-wide">Manage system administrators and teachers</p>
                     </div>
                 </div>
             </div>
 
-            {/* Content Table */}
-            <div className="max-w-7xl w-full px-6 py-10">
-                <div className="flex justify-end mb-6">
-                    {/* Only Show "Add User" if current user is admin */}
+            {/* Content Container */}
+            <div className="max-w-7xl w-full mx-auto px-4 md:px-6 py-6 pb-24 md:py-10 md:pb-10">
+                
+                {/* Desktop: Add User Button (Top Right) */}
+                <div className="hidden md:flex justify-end mb-6">
                     {currentUserRole === 'admin' && (
                         <button 
                             onClick={() => handleOpenModal()}
-                            className="flex items-center gap-2 bg-[#2c241b] text-[#d4af37] px-6 py-3 rounded border border-[#d4af37]/50 hover:bg-[#d4af37] hover:text-[#1c1917] transition-all duration-300 font-bold uppercase tracking-widest"
+                            className="flex items-center gap-2 bg-[#2c241b] text-[#d4af37] px-6 py-3 rounded border border-[#d4af37]/50 hover:bg-[#d4af37] hover:text-[#1c1917] transition-all duration-300 font-bold uppercase tracking-widest text-sm shadow-lg"
                         >
                             <Plus size={20} /> Add User
                         </button>
                     )}
                 </div>
-                <div className="bg-[#292524] p-1 rounded-sm border border-[#44403c] shadow-lg">
-                    <div className="overflow-x-auto">
+
+                {/* --- DESKTOP VIEW: TABLE (Hidden on Mobile) --- */}
+                <div className="hidden md:block bg-[#292524] p-1 rounded-sm border border-[#44403c] shadow-lg">
+                    <div className="overflow-x-auto custom-scrollbar">
                         <table className="w-full text-left border-collapse">
                             <thead>
                                 <tr className="bg-[#0c0a09] text-[#d4af37] uppercase text-sm tracking-widest border-b border-[#44403c]">
@@ -286,7 +289,6 @@ export default function UserManagement() {
                                 {admins.map((admin) => (
                                     <tr key={admin.id} className="hover:bg-[#0c0a09]/50 transition-colors bg-[#1c1917]">
                                         <td className="p-4 font-medium text-[#e7e5e4] flex items-center gap-4">
-                                            {/* Avatar Display */}
                                             <div className="h-10 w-10 rounded-full bg-[#292524] border border-[#44403c] overflow-hidden flex-shrink-0">
                                                 {admin.photoURL ? (
                                                     <img src={admin.photoURL} alt={admin.firstName} className="h-full w-full object-cover" />
@@ -296,10 +298,8 @@ export default function UserManagement() {
                                                     </div>
                                                 )}
                                             </div>
-                                            
                                             <div className="flex flex-col">
                                                 <span className="font-bold text-[#e7e5e4]">{admin.firstName} {admin.lastName}</span>
-                                                <span className="text-xs text-[#a8a29e] uppercase tracking-wider">{admin.role}</span>
                                             </div>
                                         </td>
                                         <td className="p-4 text-[#a8a29e]">{admin.email}</td>
@@ -318,100 +318,167 @@ export default function UserManagement() {
                                         </td>
                                         {currentUserRole === 'admin' && (
                                             <td className="p-4 flex justify-center gap-3">
-                                                <button 
-                                                    onClick={() => handleOpenModal(admin)} 
-                                                    className="text-[#a8a29e] hover:text-[#d4af37] transition-colors p-2 hover:bg-[#292524] rounded"
-                                                    title="Edit"
-                                                >
+                                                <button onClick={() => handleOpenModal(admin)} className="text-[#a8a29e] hover:text-[#d4af37] transition-colors p-2 hover:bg-[#292524] rounded">
                                                     <Edit2 size={18} />
                                                 </button>
-                                                <button 
-                                                    onClick={() => handleDeleteClick(admin)} 
-                                                    className="text-[#a8a29e] hover:text-[#ef4444] transition-colors p-2 hover:bg-[#292524] rounded"
-                                                    title="Delete"
-                                                >
+                                                <button onClick={() => handleDeleteClick(admin)} className="text-[#a8a29e] hover:text-[#ef4444] transition-colors p-2 hover:bg-[#292524] rounded">
                                                     <Trash2 size={18} />
                                                 </button>
                                             </td>
                                         )}
                                     </tr>
                                 ))}
-                                {admins.length === 0 && (
-                                    <tr>
-                                        <td colSpan={currentUserRole === 'admin' ? "5" : "4"} className="p-8 text-center text-[#57534e] italic">
-                                            No users found. {currentUserRole === 'admin' && 'Click "Add User" to get started.'}
-                                        </td>
-                                    </tr>
-                                )}
                             </tbody>
                         </table>
                     </div>
                 </div>
+
+                {/* --- MOBILE VIEW: CARDS (Hidden on Desktop) --- */}
+                <div className="md:hidden space-y-4">
+                    {admins.map((admin) => (
+                        <div key={admin.id} className="bg-[#292524] border border-[#44403c] rounded-lg p-4 shadow-md flex flex-col gap-4">
+                            {/* Card Header: Avatar, Name, Actions */}
+                            <div className="flex justify-between items-start">
+                                <div className="flex items-center gap-3">
+                                    <div className="h-12 w-12 rounded-full bg-[#1c1917] border border-[#44403c] overflow-hidden flex-shrink-0">
+                                        {admin.photoURL ? (
+                                            <img src={admin.photoURL} alt={admin.firstName} className="h-full w-full object-cover" />
+                                        ) : (
+                                            <div className="h-full w-full flex items-center justify-center text-[#a8a29e]">
+                                                <UserCog size={24} />
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div>
+                                        <h3 className="font-bold text-[#e7e5e4] text-lg leading-tight">{admin.firstName} {admin.lastName}</h3>
+                                        <div className="flex items-center gap-1 text-[#a8a29e] text-xs mt-1">
+                                            <Mail size={12} />
+                                            <span className="truncate max-w-[150px]">{admin.email}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                {/* Mobile Actions Menu */}
+                                {currentUserRole === 'admin' && (
+                                    <div className="flex gap-1">
+                                        <button onClick={() => handleOpenModal(admin)} className="p-2 text-[#a8a29e] hover:text-[#d4af37] bg-[#1c1917] rounded border border-[#44403c]">
+                                            <Edit2 size={18} />
+                                        </button>
+                                        <button onClick={() => handleDeleteClick(admin)} className="p-2 text-[#a8a29e] hover:text-[#ef4444] bg-[#1c1917] rounded border border-[#44403c]">
+                                            <Trash2 size={18} />
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+
+                            <hr className="border-[#44403c]" />
+
+                            {/* Card Footer: Details */}
+                            <div className="flex justify-between items-center">
+                                <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 w-fit ${
+                                    admin.role === 'admin' 
+                                    ? "bg-[#7f1d1d]/20 text-[#ef4444] border border-[#ef4444]/30" 
+                                    : "bg-[#1e3a8a]/20 text-[#3b82f6] border border-[#3b82f6]/30"
+                                }`}>
+                                    {admin.role === 'admin' ? <ShieldAlert size={12} /> : <UserCog size={12} />}
+                                    {admin.role}
+                                </span>
+
+                                {admin.role === 'teacher' && (
+                                    <div className="flex items-center gap-2 text-xs font-bold text-[#d4af37] bg-[#2c241b] px-3 py-1 rounded border border-[#d4af37]/30">
+                                        <Layers size={14} />
+                                        Section {admin.section}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    ))}
+
+                    {/* Empty State for Mobile */}
+                    {admins.length === 0 && (
+                        <div className="text-center p-8 border border-dashed border-[#44403c] rounded-lg text-[#57534e]">
+                            <UserCog size={48} className="mx-auto mb-4 opacity-50" />
+                            <p>No users found.</p>
+                            {currentUserRole === 'admin' && <p className="text-sm mt-2">Tap + to add one.</p>}
+                        </div>
+                    )}
+                </div>
             </div>
+
+            {/* Mobile Floating Action Button (FAB) */}
+            {currentUserRole === 'admin' && (
+                <button 
+                    onClick={() => handleOpenModal()}
+                    className="md:hidden fixed bottom-6 right-6 h-14 w-14 rounded-full bg-[#d4af37] text-[#1c1917] shadow-[0_0_20px_rgba(212,175,55,0.4)] flex items-center justify-center z-30 active:scale-95 transition-transform"
+                >
+                    <Plus size={32} strokeWidth={2.5} />
+                </button>
+            )}
 
             {/* Delete Confirmation Modal */}
             {isDeleteModalOpen && adminToDelete && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm">
-                    <div className="bg-[#1c1917] w-full max-w-md p-8 rounded border-2 border-[#7f1d1d] shadow-[0_0_30px_rgba(127,29,29,0.3)] relative text-center">
-                        <ShieldAlert size={48} className="mx-auto text-[#ef4444] mb-4" />
-                        <h2 className="text-2xl font-bold text-[#e7e5e4] mb-2 uppercase tracking-widest">Confirm Delete</h2>
-                        <p className="text-[#a8a29e] mb-8">
+                    <div className="bg-[#1c1917] w-full max-w-md p-6 md:p-8 rounded border-2 border-[#7f1d1d] shadow-[0_0_30px_rgba(127,29,29,0.3)] relative text-center">
+                        <ShieldAlert size={40} className="mx-auto text-[#ef4444] mb-4 md:w-12 md:h-12" />
+                        <h2 className="text-xl md:text-2xl font-bold text-[#e7e5e4] mb-2 uppercase tracking-widest">Confirm Delete</h2>
+                        <p className="text-[#a8a29e] mb-6 md:mb-8 text-sm md:text-base">
                             Are you sure you want to remove <span className="text-[#d4af37] font-bold">{adminToDelete.firstName} {adminToDelete.lastName}</span>? This action cannot be undone.
                         </p>
                         
-                        <div className="flex justify-center gap-4">
+                        <div className="flex justify-center gap-3 md:gap-4">
                             <button 
                                 onClick={() => setIsDeleteModalOpen(false)}
-                                className="px-6 py-3 rounded text-[#a8a29e] font-bold uppercase tracking-widest hover:text-[#e7e5e4] border border-transparent hover:border-[#57534e] transition-colors"
+                                className="px-4 py-2 md:px-6 md:py-3 rounded text-[#a8a29e] font-bold uppercase tracking-widest hover:text-[#e7e5e4] border border-transparent hover:border-[#57534e] transition-colors text-xs md:text-sm"
                             >
                                 Cancel
                             </button>
                             <button 
                                 onClick={confirmDelete}
-                                className="bg-[#7f1d1d] text-[#e7e5e4] px-8 py-3 rounded font-bold uppercase tracking-widest border border-[#ef4444]/50 hover:bg-[#ef4444] transition-all flex items-center gap-2"
+                                className="bg-[#7f1d1d] text-[#e7e5e4] px-6 py-2 md:px-8 md:py-3 rounded font-bold uppercase tracking-widest border border-[#ef4444]/50 hover:bg-[#ef4444] transition-all flex items-center gap-2 text-xs md:text-sm"
                             >
-                                <Trash2 size={18} /> Delete User
+                                <Trash2 size={16} className="md:w-[18px] md:h-[18px]" /> Delete
                             </button>
                         </div>
                     </div>
                 </div>
             )}
 
-            {/* Add/Edit Modal */}
+            {/* Add/Edit Modal (Full Screen on Mobile) */}
             {isModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-                    <div className="bg-[#1c1917] w-full max-w-5xl p-0 rounded-lg border border-[#44403c] shadow-2xl relative overflow-hidden flex flex-col max-h-[90vh]">
+                <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/80 backdrop-blur-sm md:p-4">
+                    <div className="bg-[#1c1917] w-full h-full md:h-auto md:max-h-[90vh] md:max-w-5xl rounded-none md:rounded-lg border-x-0 border-y-0 md:border md:border-[#44403c] shadow-2xl relative overflow-hidden flex flex-col">
+                        
                         {/* Modal Header */}
-                        <div className="p-6 border-b border-[#44403c] bg-[#0c0a09] flex justify-between items-center sticky top-0 z-10">
-                            <h2 className="text-2xl font-bold text-[#d4af37] uppercase tracking-widest flex items-center gap-3">
-                                {editingAdmin ? <Edit2 size={24} /> : <Plus size={24} />}
+                        <div className="p-4 md:p-6 border-b border-[#44403c] bg-[#0c0a09] flex justify-between items-center sticky top-0 z-10 flex-shrink-0">
+                            <h2 className="text-lg md:text-2xl font-bold text-[#d4af37] uppercase tracking-widest flex items-center gap-2 md:gap-3">
+                                {editingAdmin ? <Edit2 size={20} className="md:w-6 md:h-6" /> : <Plus size={20} className="md:w-6 md:h-6" />}
                                 {editingAdmin ? "Edit User" : "Add New User"}
                             </h2>
-                            <button onClick={() => setIsModalOpen(false)} className="text-[#a8a29e] hover:text-[#ef4444] transition-colors">
-                                <X size={28} />
+                            <button onClick={() => setIsModalOpen(false)} className="text-[#a8a29e] hover:text-[#ef4444] transition-colors p-1">
+                                <X size={24} className="md:w-7 md:h-7" />
                             </button>
                         </div>
 
                         {/* Modal Body */}
-                        <div className="p-8 overflow-y-auto custom-scrollbar">
-                            <form onSubmit={handleSave} className="grid grid-cols-1 md:grid-cols-12 gap-8">
+                        <div className="flex-1 p-4 md:p-8 overflow-y-auto custom-scrollbar">
+                            <form id="userForm" onSubmit={handleSave} className="grid grid-cols-1 md:grid-cols-12 gap-6 md:gap-8 pb-20 md:pb-0">
                                 
                                 {/* Left Column: Image Upload */}
                                 <div className="md:col-span-4 flex flex-col items-center gap-4">
-                                    <div className="relative group w-48 h-48 rounded-full border-4 border-[#292524] bg-[#0c0a09] overflow-hidden flex items-center justify-center shadow-inner">
+                                    <div className="relative group w-32 h-32 md:w-48 md:h-48 rounded-full border-4 border-[#292524] bg-[#0c0a09] overflow-hidden flex items-center justify-center shadow-inner shrink-0">
                                         {imagePreview ? (
                                             <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
                                         ) : (
                                             <div className="flex flex-col items-center text-[#44403c] group-hover:text-[#a8a29e] transition-colors">
-                                                <ImageIcon size={48} />
-                                                <span className="text-xs uppercase font-bold mt-2">No Image</span>
+                                                <ImageIcon size={32} className="md:w-12 md:h-12" />
+                                                <span className="text-[10px] md:text-xs uppercase font-bold mt-2">No Image</span>
                                             </div>
                                         )}
                                         
                                         {/* Overlay for upload */}
                                         <label className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
-                                            <Upload size={32} className="text-[#d4af37] mb-2" />
-                                            <span className="text-[#e7e5e4] text-xs font-bold uppercase tracking-wider">Change Photo</span>
+                                            <Upload size={24} className="text-[#d4af37] mb-1 md:mb-2 md:w-8 md:h-8" />
+                                            <span className="text-[#e7e5e4] text-[10px] md:text-xs font-bold uppercase tracking-wider text-center px-2">Change Photo</span>
                                             <input 
                                                 type="file" 
                                                 accept="image/*" 
@@ -421,18 +488,18 @@ export default function UserManagement() {
                                         </label>
                                     </div>
                                     <div className="text-center">
-                                        <p className="text-[#a8a29e] text-xs uppercase tracking-widest font-bold">Profile Photo</p>
-                                        <p className="text-[#57534e] text-[10px] mt-1">Click image to upload. Max 2MB.</p>
+                                        <p className="text-[#a8a29e] text-[10px] md:text-xs uppercase tracking-widest font-bold">Profile Photo</p>
+                                        <p className="text-[#57534e] text-[10px] mt-1 hidden md:block">Click image to upload. Max 2MB.</p>
                                     </div>
                                 </div>
 
                                 {/* Right Column: Form Fields */}
-                                <div className="md:col-span-8 space-y-5">
-                                    <div className="grid grid-cols-2 gap-4">
+                                <div className="md:col-span-8 space-y-4 md:space-y-5">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <div className="space-y-1">
-                                            <label className="text-xs font-bold text-[#a8a29e] uppercase tracking-wider">First Name</label>
+                                            <label className="text-[10px] md:text-xs font-bold text-[#a8a29e] uppercase tracking-wider">First Name</label>
                                             <input 
-                                                className="w-full bg-[#0c0a09] border border-[#44403c] p-3 rounded text-[#e7e5e4] focus:border-[#d4af37] outline-none transition-colors"
+                                                className="w-full bg-[#0c0a09] border border-[#44403c] p-3 rounded text-[#e7e5e4] focus:border-[#d4af37] outline-none transition-colors text-sm"
                                                 value={formData.firstName}
                                                 onChange={(e) => setFormData({...formData, firstName: e.target.value})}
                                                 placeholder="e.g. John"
@@ -440,9 +507,9 @@ export default function UserManagement() {
                                             />
                                         </div>
                                         <div className="space-y-1">
-                                            <label className="text-xs font-bold text-[#a8a29e] uppercase tracking-wider">Last Name</label>
+                                            <label className="text-[10px] md:text-xs font-bold text-[#a8a29e] uppercase tracking-wider">Last Name</label>
                                             <input 
-                                                className="w-full bg-[#0c0a09] border border-[#44403c] p-3 rounded text-[#e7e5e4] focus:border-[#d4af37] outline-none transition-colors"
+                                                className="w-full bg-[#0c0a09] border border-[#44403c] p-3 rounded text-[#e7e5e4] focus:border-[#d4af37] outline-none transition-colors text-sm"
                                                 value={formData.lastName}
                                                 onChange={(e) => setFormData({...formData, lastName: e.target.value})}
                                                 placeholder="e.g. Doe"
@@ -452,10 +519,10 @@ export default function UserManagement() {
                                     </div>
 
                                     <div className="space-y-1">
-                                        <label className="text-xs font-bold text-[#a8a29e] uppercase tracking-wider">Email Address</label>
+                                        <label className="text-[10px] md:text-xs font-bold text-[#a8a29e] uppercase tracking-wider">Email Address</label>
                                         <input 
                                             type="email"
-                                            className="w-full bg-[#0c0a09] border border-[#44403c] p-3 rounded text-[#e7e5e4] focus:border-[#d4af37] outline-none transition-colors"
+                                            className="w-full bg-[#0c0a09] border border-[#44403c] p-3 rounded text-[#e7e5e4] focus:border-[#d4af37] outline-none transition-colors text-sm"
                                             value={formData.email}
                                             onChange={(e) => setFormData({...formData, email: e.target.value})}
                                             placeholder="teacher@codequest.com"
@@ -465,20 +532,20 @@ export default function UserManagement() {
 
                                     {/* Password Field with Generator */}
                                     <div className="space-y-1">
-                                        <label className="text-xs font-bold text-[#a8a29e] uppercase tracking-wider">
+                                        <label className="text-[10px] md:text-xs font-bold text-[#a8a29e] uppercase tracking-wider">
                                             {editingAdmin ? "Reset Password (Optional)" : "Password"}
                                         </label>
                                         <div className="flex gap-2">
                                             <div className="relative flex-1">
                                                 <input 
-                                                    type="text" // Visible text for admin ease
-                                                    className="w-full bg-[#0c0a09] border border-[#44403c] p-3 rounded text-[#e7e5e4] focus:border-[#d4af37] outline-none transition-colors font-mono tracking-wide"
+                                                    type="text" 
+                                                    className="w-full bg-[#0c0a09] border border-[#44403c] p-3 rounded text-[#e7e5e4] focus:border-[#d4af37] outline-none transition-colors font-mono tracking-wide text-sm"
                                                     value={formData.password}
                                                     onChange={(e) => setFormData({...formData, password: e.target.value})}
-                                                    placeholder={editingAdmin ? "Leave blank to keep current" : "Generate or type..."}
+                                                    placeholder={editingAdmin ? "Leave blank to keep" : "Generate or type..."}
                                                     required={!editingAdmin}
                                                 />
-                                                <KeyRound size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#57534e]" />
+                                                <KeyRound size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#57534e]" />
                                             </div>
                                             <button 
                                                 type="button"
@@ -486,32 +553,32 @@ export default function UserManagement() {
                                                 className="bg-[#292524] border border-[#44403c] text-[#d4af37] p-3 rounded hover:bg-[#d4af37] hover:text-[#1c1917] transition-all"
                                                 title="Generate Password"
                                             >
-                                                <RefreshCw size={20} />
+                                                <RefreshCw size={18} />
                                             </button>
                                             <button 
                                                 type="button"
                                                 onClick={() => {
                                                     navigator.clipboard.writeText(formData.password);
-                                                    showToast("Password copied to clipboard!");
+                                                    showToast("Password copied!");
                                                 }}
                                                 className="bg-[#292524] border border-[#44403c] text-[#d4af37] p-3 rounded hover:bg-[#d4af37] hover:text-[#1c1917] transition-all"
                                                 title="Copy Password"
                                                 disabled={!formData.password}
                                             >
-                                                <Copy size={20} />
+                                                <Copy size={18} />
                                             </button>
                                         </div>
                                         <p className="text-[#57534e] text-[10px]">
-                                            {editingAdmin ? "Updating this will not change their actual login password (only metadata) unless you have Admin SDK." : "Generates a strong password. Copy this before saving."}
+                                            {editingAdmin ? "Updates metadata only." : "Generates a strong password."}
                                         </p>
                                     </div>
 
-                                    <div className="grid grid-cols-2 gap-4">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                         <div className="space-y-1">
-                                            <label className="text-xs font-bold text-[#a8a29e] uppercase tracking-wider">Role</label>
+                                            <label className="text-[10px] md:text-xs font-bold text-[#a8a29e] uppercase tracking-wider">Role</label>
                                             <div className="relative">
                                                 <select 
-                                                    className="w-full bg-[#0c0a09] border border-[#44403c] p-3 rounded text-[#e7e5e4] focus:border-[#d4af37] outline-none appearance-none transition-colors"
+                                                    className="w-full bg-[#0c0a09] border border-[#44403c] p-3 rounded text-[#e7e5e4] focus:border-[#d4af37] outline-none appearance-none transition-colors text-sm"
                                                     value={formData.role}
                                                     onChange={(e) => setFormData({...formData, role: e.target.value})}
                                                 >
@@ -519,17 +586,17 @@ export default function UserManagement() {
                                                     <option value="admin">Admin</option>
                                                 </select>
                                                 <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-[#a8a29e]">
-                                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
                                                 </div>
                                             </div>
                                         </div>
                                         {/* Only show Section dropdown if role is teacher */}
                                         {formData.role === 'teacher' && (
                                             <div className="space-y-1">
-                                                <label className="text-xs font-bold text-[#a8a29e] uppercase tracking-widest">Section</label>
+                                                <label className="text-[10px] md:text-xs font-bold text-[#a8a29e] uppercase tracking-widest">Section</label>
                                                 <div className="relative">
                                                     <select 
-                                                        className="w-full bg-[#0c0a09] border border-[#44403c] p-3 rounded text-[#e7e5e4] focus:border-[#d4af37] outline-none appearance-none transition-colors"
+                                                        className="w-full bg-[#0c0a09] border border-[#44403c] p-3 rounded text-[#e7e5e4] focus:border-[#d4af37] outline-none appearance-none transition-colors text-sm"
                                                         value={formData.section}
                                                         onChange={(e) => setFormData({...formData, section: e.target.value})}
                                                     >
@@ -537,37 +604,34 @@ export default function UserManagement() {
                                                         <option value="B">Section B</option>
                                                     </select>
                                                     <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-[#a8a29e]">
-                                                        <Layers size={16} />
+                                                        <Layers size={14} />
                                                     </div>
                                                 </div>
                                             </div>
                                         )}
                                     </div>
-                                    <p className="text-[#57534e] text-xs mt-1">
-                                        {formData.role === 'admin' 
-                                            ? "Admins have full access to system settings and user management." 
-                                            : "Teachers can manage classes, assignments, and view student progress."}
-                                    </p>
                                 </div>
                             </form>
                         </div>
 
                         {/* Modal Footer */}
-                        <div className="p-6 bg-[#0c0a09] border-t border-[#44403c] flex justify-end gap-3 sticky bottom-0 z-10">
+                        <div className="p-4 md:p-6 bg-[#0c0a09] border-t border-[#44403c] flex justify-end gap-3 sticky bottom-0 z-10 shrink-0">
                             <button 
                                 type="button"
                                 onClick={() => setIsModalOpen(false)}
-                                className="px-6 py-3 rounded text-[#a8a29e] font-bold uppercase tracking-widest hover:text-[#e7e5e4] transition-colors"
+                                className="px-4 py-2 md:px-6 md:py-3 rounded text-[#a8a29e] font-bold uppercase tracking-widest hover:text-[#e7e5e4] transition-colors text-xs md:text-sm"
                                 disabled={uploading}
                             >
                                 Cancel
                             </button>
+                            {/* Connects to the form via ID to allow submission from outside the form tag */}
                             <button 
-                                onClick={handleSave}
+                                type="submit"
+                                form="userForm"
                                 disabled={uploading}
-                                className="bg-[#2c241b] text-[#d4af37] px-8 py-3 rounded font-bold uppercase tracking-widest border border-[#d4af37]/50 hover:bg-[#d4af37] hover:text-[#1c1917] transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="bg-[#2c241b] text-[#d4af37] px-6 py-2 md:px-8 md:py-3 rounded font-bold uppercase tracking-widest border border-[#d4af37]/50 hover:bg-[#d4af37] hover:text-[#1c1917] transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed text-xs md:text-sm"
                             >
-                                {uploading ? <Loader2 className="animate-spin" size={20} /> : <Save size={20} />}
+                                {uploading ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} className="md:w-5 md:h-5" />}
                                 {uploading ? "Saving..." : (editingAdmin ? "Update User" : "Save User")}
                             </button>
                         </div>

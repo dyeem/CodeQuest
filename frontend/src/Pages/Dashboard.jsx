@@ -166,24 +166,24 @@ export default function Dashboard() {
 
             <div className="relative z-10 w-full">
                 {/* Banner */}
-                <div className="w-full bg-[#0c0a09] border-b-4 border-[#292524] py-12 px-6 shadow-2xl relative overflow-hidden">
+                <div className="w-full bg-[#0c0a09] border-b-4 border-[#292524] py-8 md:py-12 px-4 md:px-6 shadow-2xl relative overflow-hidden">
                     <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-[#d4af37] to-transparent opacity-50"></div>
                     <div className="max-w-7xl mx-auto text-center">
-                        <h1 className="text-5xl font-bold text-[#d4af37] tracking-widest uppercase mb-4 drop-shadow-md" style={{ textShadow: "2px 2px 0px #000" }}>
+                        <h1 className="text-3xl md:text-5xl font-bold text-[#d4af37] tracking-widest uppercase mb-4 drop-shadow-md" style={{ textShadow: "2px 2px 0px #000" }}>
                             Admin Dashboard
                         </h1>
-                        <p className="text-xl text-[#a8a29e] italic tracking-wider flex items-center justify-center gap-2">
-                            <span className="h-[1px] w-12 bg-[#57534e]"></span>
+                        <p className="text-sm md:text-xl text-[#a8a29e] italic tracking-wider flex items-center justify-center gap-2">
+                            <span className="h-[1px] w-8 md:w-12 bg-[#57534e]"></span>
                             Overview of Student Performance & Engagement
-                            <span className="h-[1px] w-12 bg-[#57534e]"></span>
+                            <span className="h-[1px] w-8 md:w-12 bg-[#57534e]"></span>
                         </p>
                     </div>
                 </div>
                 
-                <div className="max-w-7xl mx-auto px-6 py-10 space-y-10">
+                <div className="max-w-7xl mx-auto px-4 md:px-6 py-6 md:py-10 space-y-6 md:space-y-10">
                     
                     {/* Stats Grid */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
                         <StatCard 
                             title="Total Students" 
                             count={stats.totalStudents} 
@@ -212,7 +212,7 @@ export default function Dashboard() {
                     </div>
 
                     {/* Main Charts Section */}
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
                         {/* Line Chart - Wide */}
                         <div className="lg:col-span-2 bg-[#292524] rounded-sm shadow-[inset_0_0_20px_rgba(0,0,0,0.8)] border-2 border-[#44403c] p-1 relative group">
                             <div className="absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2 border-[#d4af37] -mt-1 -ml-1"></div>
@@ -220,8 +220,8 @@ export default function Dashboard() {
                             <div className="absolute bottom-0 left-0 w-4 h-4 border-b-2 border-l-2 border-[#d4af37] -mb-1 -ml-1"></div>
                             <div className="absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2 border-[#d4af37] -mb-1 -mr-1"></div>
                             
-                            <div className="bg-[#1c1917]/90 p-6 h-full backdrop-blur-sm">
-                                <h3 className="text-2xl font-bold text-[#e7e5e4] mb-6 flex items-center gap-3 border-b border-[#44403c] pb-2">
+                            <div className="bg-[#1c1917]/90 p-4 md:p-6 h-full backdrop-blur-sm">
+                                <h3 className="text-xl md:text-2xl font-bold text-[#e7e5e4] mb-6 flex items-center gap-3 border-b border-[#44403c] pb-2">
                                     <ScrollText className="text-[#d4af37]" size={24}/>
                                     XP Growth Trends
                                 </h3>
@@ -231,8 +231,8 @@ export default function Dashboard() {
                         
                         {/* Pie Chart - Side */}
                         <div className="bg-[#292524] rounded-sm shadow-[inset_0_0_20px_rgba(0,0,0,0.8)] border-2 border-[#44403c] p-1 relative">
-                            <div className="bg-[#1c1917]/90 p-6 h-full backdrop-blur-sm">
-                                 <h3 className="text-2xl font-bold text-[#e7e5e4] mb-6 border-b border-[#44403c] pb-2">
+                            <div className="bg-[#1c1917]/90 p-4 md:p-6 h-full backdrop-blur-sm">
+                                 <h3 className="text-xl md:text-2xl font-bold text-[#e7e5e4] mb-6 border-b border-[#44403c] pb-2">
                                     Student Status
                                  </h3>
                                  <PieChart data={chartData.pie} />
@@ -241,18 +241,18 @@ export default function Dashboard() {
                     </div>
 
                     {/* Secondary Charts Section */}
-                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 pb-10">
+                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8 pb-10">
                         <div className="bg-[#292524] rounded-sm shadow-[inset_0_0_20px_rgba(0,0,0,0.8)] border-2 border-[#44403c] p-1">
-                            <div className="bg-[#1c1917]/90 p-6 h-full backdrop-blur-sm">
-                                <h3 className="text-2xl font-bold text-[#e7e5e4] mb-6 border-b border-[#44403c] pb-2">
+                            <div className="bg-[#1c1917]/90 p-4 md:p-6 h-full backdrop-blur-sm">
+                                <h3 className="text-xl md:text-2xl font-bold text-[#e7e5e4] mb-6 border-b border-[#44403c] pb-2">
                                     Average Levels per Module
                                 </h3>
                                 <BarGraph data={chartData.bar} />
                             </div>
                         </div>
                         <div className="bg-[#292524] rounded-sm shadow-[inset_0_0_20px_rgba(0,0,0,0.8)] border-2 border-[#44403c] p-1">
-                             <div className="bg-[#1c1917]/90 p-6 h-full backdrop-blur-sm">
-                                 <h3 className="text-2xl font-bold text-[#e7e5e4] mb-6 border-b border-[#44403c] pb-2">
+                             <div className="bg-[#1c1917]/90 p-4 md:p-6 h-full backdrop-blur-sm">
+                                 <h3 className="text-xl md:text-2xl font-bold text-[#e7e5e4] mb-6 border-b border-[#44403c] pb-2">
                                     XP Distribution Curve
                                  </h3>
                                  <AreaChart data={chartData.area} />
@@ -278,16 +278,16 @@ function StatCard({ title, count, icon, suffix, subtext }) {
             <div className="absolute bottom-0 left-0 w-2 h-2 bg-[#d4af37] opacity-0 group-hover:opacity-100 transition-opacity"></div>
             <div className="absolute bottom-0 right-0 w-2 h-2 bg-[#d4af37] opacity-0 group-hover:opacity-100 transition-opacity"></div>
 
-            <div className="bg-[#1c1917] p-6 h-full flex flex-col justify-between relative z-10">
+            <div className="bg-[#1c1917] p-4 md:p-6 h-full flex flex-col justify-between relative z-10">
                 <div className="flex items-center justify-between mb-4 border-b border-[#44403c] pb-3">
-                    <h3 className="text-[#a8a29e] font-bold text-sm uppercase tracking-widest">{title}</h3>
+                    <h3 className="text-[#a8a29e] font-bold text-xs md:text-sm uppercase tracking-widest">{title}</h3>
                     <div className="p-2 bg-[#0c0a09] rounded-full border border-[#44403c] shadow-inner">
                         {icon}
                     </div>
                 </div>
                 <div className="flex flex-col">
                     <div className="flex items-baseline gap-1">
-                        <span className="text-4xl font-extrabold text-[#e7e5e4] drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)]">
+                        <span className="text-3xl md:text-4xl font-extrabold text-[#e7e5e4] drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)]">
                             <CountUp
                                 from={0}
                                 to={count}
@@ -297,9 +297,9 @@ function StatCard({ title, count, icon, suffix, subtext }) {
                                 className="count-up-text"
                             />
                         </span>
-                        <span className="text-xl font-medium text-[#d4af37]">{suffix}</span>
+                        <span className="text-lg md:text-xl font-medium text-[#d4af37]">{suffix}</span>
                     </div>
-                    {subtext && <p className="text-xs text-[#57534e] mt-2 uppercase tracking-wide">{subtext}</p>}
+                    {subtext && <p className="text-[10px] md:text-xs text-[#57534e] mt-2 uppercase tracking-wide">{subtext}</p>}
                 </div>
             </div>
         </div>
