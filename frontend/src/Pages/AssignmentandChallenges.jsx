@@ -5,9 +5,10 @@ import Quiz from "../Components/Challenge/Quiz";
 import Debug from "../Components/Challenge/Debug";
 import { Scroll, Brain, Bug, X, Plus, CheckCircle2, Trash2, Edit2, Save, Search, Filter, Eye, GraduationCap, AlertCircle, CheckCircle, ChevronRight, User, Layers, Menu } from "lucide-react";
 import { db } from "../config/firebase.config";
-import { collection, onSnapshot, addDoc, deleteDoc, doc, updateDoc, query, where, getDoc, getDocs } from "firebase/firestore";
+import { collection, onSnapshot, addDoc, deleteDoc, doc, updateDoc, query, where, getDoc, getDocs, writeBatch } from "firebase/firestore";
 import Loader from "../Components/Loader";
 import useAuth from "../hooks/auth";
+import { useToast } from "../context/ToastContext";
 import Editor from "@monaco-editor/react";
 import useGradebook from "../hooks/useGradebook";
 import SubmissionDetailView from "../Components/Grading/SubmissionDetailView";
@@ -15,6 +16,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 
 export default function AssignmentandChallenges() {
     const { admin } = useAuth();
+    const { showToast } = useToast();
     const location = useLocation();
     const navigate = useNavigate();
     
@@ -25,6 +27,8 @@ export default function AssignmentandChallenges() {
     const [tasks, setTasks] = useState([]);
     const [loading, setLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+    const [taskToDelete, setTaskToDelete] = useState(null);
     const [challengeType, setChallengeType] = useState("");
     const [currentStep, setCurrentStep] = useState(1);
     const [editingTask, setEditingTask] = useState(null);
@@ -216,7 +220,7 @@ export default function AssignmentandChallenges() {
     };
 
     const handleNextStep = () => {
-        if (!formData.title || !formData.type || !formData.dueDate) return alert("Please fill in all fields");
+        if (!formData.title || !formData.type || !formData.dueDate) return showToast("Please fill in all fields", "error");
         setChallengeType(formData.type);
         setCurrentStep(2);
     };
@@ -250,7 +254,7 @@ export default function AssignmentandChallenges() {
                 const taskRef = doc(db, "task", editingTask.id);
                 await updateDoc(taskRef, payload);
                 console.log("Document updated with ID: ", editingTask.id);
-                alert("Assignment updated successfully!");
+                showToast("Assignment updated successfully!", "success");
             } else {
                 const docRef = await addDoc(collection(db, "task"), {
                     ...payload,
@@ -258,25 +262,62 @@ export default function AssignmentandChallenges() {
                     createdBy: admin?.uid || "Anonymous" 
                 });
                 console.log("Document written with ID: ", docRef.id);
-                alert("Assignment created successfully!");
+
+                // Notify students in the section
+                try {
+                    const usersRef = collection(db, "users");
+                    const q = query(usersRef, where("section", "==", formData.section), where("role", "==", "student"));
+                    const querySnapshot = await getDocs(q);
+
+                    if (!querySnapshot.empty) {
+                        const batch = writeBatch(db);
+                        
+                        querySnapshot.docs.forEach((userDoc) => {
+                            const notifRef = doc(collection(db, "notifications"));
+                            batch.set(notifRef, {
+                                userId: userDoc.id,
+                                title: "New Assignment: " + formData.title,
+                                message: `A new task "${formData.title}" has been posted for Section ${formData.section}. Due: ${new Date(formData.dueDate).toLocaleString()}`,
+                                type: "task",
+                                relatedId: docRef.id,
+                                read: false,
+                                createdAt: new Date().toISOString()
+                            });
+                        });
+
+                        await batch.commit();
+                        console.log(`Notifications sent to ${querySnapshot.size} students.`);
+                    }
+                } catch (notifError) {
+                    console.error("Error sending notifications:", notifError);
+                }
+
+                showToast("Assignment created successfully!", "success");
             }
             
             handleCloseModal();
         } catch (error) {
             console.error("Error saving task:", error);
-            alert(`Failed to save assignment: ${error.message}`);
+            showToast(`Failed to save assignment: ${error.message}`, "error");
         }
     };
 
-    const handleDeleteTask = async (id) => {
-        if (confirm("Are you sure you want to delete this assignment? This action cannot be undone.")) {
-            try {
-                await deleteDoc(doc(db, "task", id));
-                alert("Assignment deleted successfully.");
-            } catch (error) {
-                console.error("Error deleting task:", error);
-                alert(`Failed to delete assignment: ${error.message}`);
-            }
+    const handleDeleteTask = (task) => {
+        setTaskToDelete(task);
+        setIsDeleteModalOpen(true);
+    };
+
+    const confirmDelete = async () => {
+        if (!taskToDelete) return;
+        
+        try {
+            await deleteDoc(doc(db, "task", taskToDelete.id));
+            showToast("Assignment deleted successfully!", "success");
+            setIsDeleteModalOpen(false);
+            setTaskToDelete(null);
+        } catch (error) {
+            console.error("Error deleting task:", error);
+            showToast(`Failed to delete assignment: ${error.message}`, "error");
         }
     };
 
@@ -314,7 +355,7 @@ export default function AssignmentandChallenges() {
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[#a8a29e]" size={16} />
                             <input 
                                 type="text"
-                                placeholder="Search assignments..."
+                                placeholder="Search task..."
                                 className="w-full bg-[#292524] border border-[#44403c] pl-10 pr-4 py-3 rounded text-[#e7e5e4] focus:border-[#d4af37] outline-none placeholder-[#57534e] text-sm"
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -511,7 +552,7 @@ export default function AssignmentandChallenges() {
                                                     <Edit2 size={18} />
                                                 </button>
                                                 <button 
-                                                    onClick={() => handleDeleteTask(task.id)} 
+                                                    onClick={() => handleDeleteTask(task)} 
                                                     className="text-[#a8a29e] hover:text-[#ef4444] transition-colors p-2 hover:bg-[#292524] rounded"
                                                     title="Delete"
                                                 >
@@ -523,7 +564,7 @@ export default function AssignmentandChallenges() {
                                     {filteredTasks.length === 0 && (
                                         <tr>
                                             <td colSpan="6" className="p-8 text-center text-[#57534e] italic">
-                                                {tasks.length === 0 ? "No active assignments found. Create one to begin." : "No assignments match your filters."}
+                                                {tasks.length === 0 ? "No active task found. Create one to begin." : "No task match your filters."}
                                             </td>
                                         </tr>
                                     )}
@@ -589,7 +630,7 @@ export default function AssignmentandChallenges() {
                                         <Edit2 size={14} />
                                     </button>
                                     <button 
-                                        onClick={() => handleDeleteTask(task.id)}
+                                        onClick={() => handleDeleteTask(task)}
                                         className="flex items-center justify-center gap-2 bg-[#0c0a09] text-[#ef4444] py-2.5 px-3 rounded border border-[#44403c] hover:border-[#ef4444] transition-all"
                                     >
                                         <Trash2 size={14} />
@@ -599,7 +640,7 @@ export default function AssignmentandChallenges() {
                         ))}
                         {filteredTasks.length === 0 && (
                             <div className="bg-[#292524] p-8 rounded border border-[#44403c] text-center text-[#57534e] italic text-sm">
-                                {tasks.length === 0 ? "No active assignments found. Create one to begin." : "No assignments match your filters."}
+                                {tasks.length === 0 ? "No active task found. Create one to begin." : "No task match your filters."}
                             </div>
                         )}
                     </div>
@@ -770,6 +811,38 @@ export default function AssignmentandChallenges() {
 
                 {/* GRADING MODAL */}
                 {gradingTask && <GradingModal task={gradingTask} onClose={handleCloseGrading} initialStudentId={preSelectedStudentId} />}
+
+                {/* DELETE CONFIRMATION MODAL */}
+                {isDeleteModalOpen && taskToDelete && (
+                    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm animate-fade-in">
+                        <div className="w-full max-w-md bg-[#1c1917] rounded border-2 border-[#44403c] shadow-2xl overflow-hidden">
+                            <div className="p-6 text-center">
+                                <div className="w-16 h-16 rounded-full bg-[#450a0a] border border-[#ef4444]/30 flex items-center justify-center mx-auto mb-4">
+                                    <Trash2 size={32} className="text-[#ef4444]" />
+                                </div>
+                                <h3 className="text-xl font-bold text-[#e7e5e4] mb-2">Delete Assignment?</h3>
+                                <p className="text-[#a8a29e] text-sm mb-6">
+                                    Are you sure you want to delete <span className="text-[#d4af37] font-bold">"{taskToDelete.title}"</span>? 
+                                    This action cannot be undone and all student submissions will be lost.
+                                </p>
+                                <div className="flex gap-3">
+                                    <button 
+                                        onClick={() => setIsDeleteModalOpen(false)}
+                                        className="flex-1 py-3 rounded bg-[#292524] text-[#a8a29e] font-bold uppercase tracking-wider text-sm border border-[#44403c] hover:bg-[#44403c] hover:text-[#e7e5e4] transition-all"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button 
+                                        onClick={confirmDelete}
+                                        className="flex-1 py-3 rounded bg-[#450a0a] text-[#ef4444] font-bold uppercase tracking-wider text-sm border border-[#ef4444]/30 hover:bg-[#ef4444] hover:text-white transition-all"
+                                    >
+                                        Delete
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );
@@ -777,6 +850,7 @@ export default function AssignmentandChallenges() {
 
 // Grading Modal Component - Made Responsive
 function GradingModal({ task, onClose, initialStudentId }) {
+    const { showToast } = useToast();
     const { gradebookData, loading, updateGrade } = useGradebook(task.id, task.section);
     const [grades, setScores] = useState({});
     const [selectedStudentId, setSelectedStudentId] = useState(null);
@@ -829,11 +903,12 @@ function GradingModal({ task, onClose, initialStudentId }) {
         const gradeData = grades[studentId];
         const success = await updateGrade(submissionId, studentId, gradeData.score, gradeData.feedback);
         if (success) {
-            alert("Grade updated!");
+            showToast("Grade updated!", "success");
         } else {
-            alert("Failed to update grade.");
+            showToast("Failed to update grade.", "error");
         }
     };
+
 
     const formatDate = (date) => {
         if (!date) return "-";
