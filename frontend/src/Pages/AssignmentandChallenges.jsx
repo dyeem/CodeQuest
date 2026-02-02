@@ -14,6 +14,58 @@ import useGradebook from "../hooks/useGradebook";
 import SubmissionDetailView from "../Components/Grading/SubmissionDetailView";
 import { useLocation, useNavigate } from "react-router-dom";
 
+// Improved Helper Function
+export const sendPushNotification = async (expoPushToken, title, body, data = {}) => {
+  // Ensure we have tokens
+  if (!expoPushToken || (Array.isArray(expoPushToken) && expoPushToken.length === 0)) {
+      console.log("No push tokens provided.");
+      return;
+  }
+
+  const message = {
+    to: expoPushToken,
+    sound: 'default',
+    title: title,
+    body: body,
+    data: data,
+  };
+
+  try {
+    // Use the Vite proxy path '/api/expo' instead of direct URL to avoid CORS
+    const response = await fetch('/api/expo/--/api/v2/push/send', {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(message),
+    });
+    
+    if (!response.ok) {
+       console.error("Expo Push Error Status:", response.status);
+       const errorText = await response.text();
+       console.error("Expo Push Error Body:", errorText);
+       return; 
+    }
+
+    const result = await response.json();
+    console.log("Expo Push Result:", result);
+    
+    // Check for ticket errors (partial failures in batch/multicast)
+    if (result.data && result.data.status === "error") {
+        console.error("Expo Push Ticket Error:", result.data.message);
+    }
+    if (result.errors) {
+         console.error("Expo Push Validation Errors:", result.errors);
+    }
+
+  } catch (error) {
+    // Detailed error for "Failed to fetch"
+    console.error("Error sending push notification (Network/CORS):", error);
+  }
+};
+
+
 export default function AssignmentandChallenges() {
     const { admin } = useAuth();
     const { showToast } = useToast();
@@ -264,31 +316,52 @@ export default function AssignmentandChallenges() {
                 console.log("Document written with ID: ", docRef.id);
 
                 // Notify students in the section
-                try {
+                 try {
                     const usersRef = collection(db, "users");
                     const q = query(usersRef, where("section", "==", formData.section), where("role", "==", "student"));
                     const querySnapshot = await getDocs(q);
-
+                
                     if (!querySnapshot.empty) {
                         const batch = writeBatch(db);
-                        
+                        const pushTokens = []; // Store tokens to send in bulk/loop
+            
                         querySnapshot.docs.forEach((userDoc) => {
+                            const userData = userDoc.data();
+            
+                            // 1. Create Database Notification
                             const notifRef = doc(collection(db, "notifications"));
                             batch.set(notifRef, {
                                 userId: userDoc.id,
                                 title: "New Assignment: " + formData.title,
-                                message: `A new task "${formData.title}" has been posted for Section ${formData.section}. Due: ${new Date(formData.dueDate).toLocaleString()}`,
+                                message: `A new task "${formData.title}" has been posted.`,
                                 type: "task",
                                 relatedId: docRef.id,
                                 read: false,
                                 createdAt: new Date().toISOString()
                             });
+
+                            // 2. Collect Push Tokens
+                            if (userData.pushToken && userData.pushToken.includes("ExponentPushToken")) {
+                                pushTokens.push(userData.pushToken);
+                            }
                         });
 
+                        // 3. Commit Database Changes
                         await batch.commit();
-                        console.log(`Notifications sent to ${querySnapshot.size} students.`);
+                        console.log(`Database notifications saved.`);
+            
+                        // 4. Send Push Notifications
+                        if (pushTokens.length > 0) {
+                            await sendPushNotification(
+                                pushTokens, 
+                                "New Assignment: " + formData.title,
+                                `A new task "${formData.title}" has been posted for Section ${formData.section}.`,
+                                { taskId: docRef.id }
+                            );
+                        }
                     }
                 } catch (notifError) {
+                    // CATCH NETWORK ERRORS SO THE APP DOESN'T CRASH
                     console.error("Error sending notifications:", notifError);
                 }
 
