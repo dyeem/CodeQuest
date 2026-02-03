@@ -7,6 +7,7 @@ import StudentManagement from "../Pages/StudentManagement";
 import AssignmentandChallenges from "../Pages/AssignmentandChallenges";
 import UserManagement from "../Pages/UserManagement";
 import Profile from "../Pages/Profile";
+import Feedback from "../Pages/Feedback";
 
 const Routes = () => {
   const routes = useRoutes([
@@ -21,6 +22,7 @@ const Routes = () => {
             { path: "dashboard", element: <Dashboard /> },
             { path: "student-management", element: <StudentManagement /> },
             { path: "assignment-and-challenges", element: <AssignmentandChallenges />},
+            { path: "feedback", element: <Feedback />},
             { path: "user-management", element: <UserManagement />},
             { path: "profile", element: <Profile />},
           ],

@@ -113,7 +113,6 @@ export default function Dashboard() {
                 const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun"];
                 const sectionA_Trend = [120, 150, 180, 220, 280, 312].map(v => Math.round(v * scaleFactor)); 
                 const sectionB_Trend = [100, 120, 160, 190, 210, 240].map(v => Math.round(v * scaleFactor));
-                const sectionC_Trend = [80, 110, 130, 160, 250, 290].map(v => Math.round(v * scaleFactor));
 
                 setChartData({
                     bar: {
@@ -133,7 +132,6 @@ export default function Dashboard() {
                         series: [
                             { name: "Section A", type: "line", smooth: true, data: sectionA_Trend },
                             { name: "Section B", type: "line", smooth: true, data: sectionB_Trend },
-                            { name: "Section C", type: "line", smooth: true, data: sectionC_Trend },
                             ]
                     }
                 });

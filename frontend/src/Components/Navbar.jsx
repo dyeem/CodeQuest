@@ -1,7 +1,7 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { signOut } from "firebase/auth";
 import { auth, db } from "../config/firebase.config.js";
-import { LayoutDashboard, Users, FileText, LogOut, Code, Scroll, Shield, User, X } from "lucide-react";
+import { LayoutDashboard, Users, FileText, LogOut, Code, Scroll, Shield, User, X, MessageSquare } from "lucide-react";
 import useAuth from "../hooks/auth";
 import { useEffect, useState } from "react";
 import { collection, query, where, onSnapshot } from "firebase/firestore";
@@ -104,6 +104,13 @@ export default function Sidebar({ isOpen, onClose }) {
             icon={<User size={20} />} 
             label="Profile" 
             activeClass={isActive("/profile")}
+            onClick={onClose}
+            />
+             <SidebarLink 
+            to="/feedback" 
+            icon={<MessageSquare size={20} />} 
+            label="Feedback" 
+            activeClass={isActive("/feedback")}
             onClick={onClose}
             />
         </nav>
