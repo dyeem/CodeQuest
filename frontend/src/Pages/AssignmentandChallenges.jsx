@@ -31,8 +31,8 @@ export const sendPushNotification = async (expoPushToken, title, body, data = {}
   };
 
   try {
-    // Use the Vite proxy path '/api/expo' instead of direct URL to avoid CORS
-    const response = await fetch('/api/expo/--/api/v2/push/send', {
+    // Use Vercel serverless function to avoid CORS (works in both dev and production)
+    const response = await fetch('/api/push', {
       method: 'POST',
       headers: {
         Accept: 'application/json',
