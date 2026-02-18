@@ -56,7 +56,7 @@ export default function Sidebar({ isOpen, onClose }) {
             ></div>
         )}
 
-        <aside className={`h-screen w-64 bg-[#0f0c08] text-[#a8a29e] flex flex-col shadow-2xl fixed left-0 top-0 overflow-y-auto font-serif z-50 border-r border-[#292524] transition-transform duration-300 ease-in-out md:translate-x-0 ${isOpen ? "translate-x-0" : "-translate-x-full"}`}>
+        <aside className={`h-screen w-80 bg-[#0f0c08] text-[#a8a29e] flex flex-col shadow-2xl fixed left-0 top-0 overflow-y-auto font-serif z-50 border-r border-[#292524] transition-transform duration-300 ease-in-out md:translate-x-0 ${isOpen ? "translate-x-0" : "-translate-x-full"}`}>
         {/* Ancient Header */}
         <div className="p-6 border-b border-[#292524] relative overflow-hidden group flex justify-between items-center">
             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[#d4af37]/5 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000"></div>
@@ -70,49 +70,62 @@ export default function Sidebar({ isOpen, onClose }) {
             </button>
         </div>
 
-        <nav className="flex-1 px-3 py-8 space-y-4">
+        <nav className="flex-1 px-3 py-6 space-y-1 overflow-y-auto custom-scrollbar">
+            <NavSection title="Overview" />
             <SidebarLink 
-            to="/dashboard" 
-            icon={<LayoutDashboard size={20} />} 
-            label="Dashboard" 
-            activeClass={isActive("/dashboard")}
-            onClick={onClose}
+                to="/dashboard" 
+                icon={<LayoutDashboard size={18} />} 
+                label="Dashboard" 
+                activeClass={isActive("/dashboard")}
+                onClick={onClose}
             />
-            <SidebarLink 
-            to="/student-management" 
-            icon={<Users size={20} />} 
-            label="Students" 
-            activeClass={isActive("/student-management")}
-            onClick={onClose}
-            />
-            <SidebarLink 
-            to="/assignment-and-challenges" 
-            icon={<FileText size={20} />} 
-            label="Assignments & Challenges" 
-            activeClass={isActive("/assignment-and-challenges")}
-            onClick={onClose}
-            />
-            <SidebarLink 
-            to="/user-management" 
-            icon={<Shield size={20} />} 
-            label="User Management" 
-            activeClass={isActive("/user-management")}
-            onClick={onClose}
-            />
-            <SidebarLink 
-            to="/profile" 
-            icon={<User size={20} />} 
-            label="Profile" 
-            activeClass={isActive("/profile")}
-            onClick={onClose}
-            />
-             <SidebarLink 
-            to="/feedback" 
-            icon={<MessageSquare size={20} />} 
-            label="Feedback" 
-            activeClass={isActive("/feedback")}
-            onClick={onClose}
-            />
+
+            <div className="pt-4">
+                <NavSection title="Academic" />
+                <SidebarLink 
+                    to="/assignment-and-challenges" 
+                    icon={<FileText size={18} />} 
+                    label="Assignments" 
+                    activeClass={isActive("/assignment-and-challenges")}
+                    onClick={onClose}
+                />
+                <SidebarLink 
+                    to="/feedback" 
+                    icon={<MessageSquare size={18} />} 
+                    label="Feedback" 
+                    activeClass={isActive("/feedback")}
+                    onClick={onClose}
+                />
+            </div>
+
+            <div className="pt-4">
+                <NavSection title="Administration" />
+                <SidebarLink 
+                    to="/student-management" 
+                    icon={<Users size={18} />} 
+                    label="Students" 
+                    activeClass={isActive("/student-management")}
+                    onClick={onClose}
+                />
+                <SidebarLink 
+                    to="/user-management" 
+                    icon={<Shield size={18} />} 
+                    label="User Management" 
+                    activeClass={isActive("/user-management")}
+                    onClick={onClose}
+                />
+            </div>
+
+            <div className="pt-4">
+                <NavSection title="Account" />
+                <SidebarLink 
+                    to="/profile" 
+                    icon={<User size={18} />} 
+                    label="My Profile" 
+                    activeClass={isActive("/profile")}
+                    onClick={onClose}
+                />
+            </div>
         </nav>
 
         <div className="border-t border-[#292524] bg-[#0c0a09]">
@@ -153,14 +166,45 @@ export default function Sidebar({ isOpen, onClose }) {
 }
 
 function SidebarLink({ to, icon, label, activeClass, onClick }) {
+
     return (
+
         <Link
+
             to={to}
+
             onClick={onClick}
-            className={`flex items-center gap-3 px-4 py-3 rounded-md transition-all duration-300 font-medium tracking-wide ${activeClass}`}
+
+            className={`flex items-center gap-3 px-4 py-2.5 rounded-md transition-all duration-300 font-medium tracking-wide text-sm ${activeClass}`}
+
         >
+
             {icon}
+
             <span>{label}</span>
+
         </Link>
+
     )
+
+}
+
+
+
+function NavSection({ title }) {
+
+    return (
+
+        <div className="px-4 mb-2">
+
+            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#57534e] border-b border-[#292524] pb-1 mb-2">
+
+                {title}
+
+            </p>
+
+        </div>
+
+    )
+
 }

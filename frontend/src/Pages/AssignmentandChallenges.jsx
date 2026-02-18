@@ -88,6 +88,7 @@ export default function AssignmentandChallenges() {
     const [gradingTask, setGradingTask] = useState(null);
     const [preSelectedStudentId, setPreSelectedStudentId] = useState(null);
     const [userSection, setUserSection] = useState(null);
+    const [userRole, setUserRole] = useState(null);
     const [showMobileFilters, setShowMobileFilters] = useState(false);
 
     // Filter & Search State
@@ -137,15 +138,27 @@ export default function AssignmentandChallenges() {
                         }
                     }
 
-                    if (userData && userData.section) {
-                        const sec = userData.section;
-                        setUserSection(sec);
-                        setFilterSection(sec);
-                        setFormData(prev => ({ ...prev, section: sec }));
+                    if (userData) {
+                        setUserRole(userData.role || 'teacher');
+                        if (userData.role === 'admin') {
+                            setUserSection(null);
+                            setFilterSection("all");
+                        } else if (userData.section) {
+                            const sec = userData.section;
+                            setUserSection(sec);
+                            setFilterSection(sec);
+                            setFormData(prev => ({ ...prev, section: sec }));
+                        }
+                    } else {
+                        setUserRole('teacher');
                     }
                 } catch (error) {
                     console.error("Error fetching user section:", error);
+                    setUserRole('teacher');
                 }
+            } else if (admin === null) {
+                // Handle case where user is not logged in
+                setLoading(false);
             }
         };
         fetchUserSection();
@@ -153,10 +166,13 @@ export default function AssignmentandChallenges() {
 
     // Fetch Tasks
     useEffect(() => {
-        if (!admin) return;
+        if (!admin || userRole === null) return;
 
         const tasksCollection = collection(db, "task");
-        const q = query(tasksCollection, where("createdBy", "==", admin.uid));
+        // Admins see all tasks, teachers only see their own
+        const q = userRole === 'admin' 
+            ? query(tasksCollection)
+            : query(tasksCollection, where("createdBy", "==", admin.uid));
 
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const fetchedTasks = snapshot.docs.map(doc => {
@@ -169,9 +185,12 @@ export default function AssignmentandChallenges() {
             });
             setTasks(fetchedTasks);
             setLoading(false);
+        }, (error) => {
+            console.error("Error fetching tasks:", error);
+            setLoading(false);
         });
         return () => unsubscribe();
-    }, [admin]);
+    }, [admin, userRole]);
 
     // Handle Deep Linking from Student Management
     useEffect(() => {
@@ -411,8 +430,8 @@ export default function AssignmentandChallenges() {
 
             <div className="w-full flex flex-col items-center relative z-10">
                 {/* Header */}
-                <div className="w-full bg-[#0c0a09] border-b-2 md:border-b-4 border-[#292524] py-4 px-4 md:py-10 md:px-6 shadow-2xl">
-                    <div className="max-w-7xl mx-auto">
+                <div className="w-full bg-[#0c0a09] border-b-2 md:border-b-4 border-[#292524] py-4 px-4 md:py-10 md:px-10 shadow-2xl">
+                    <div className="w-full">
                         <h1 className="text-xl sm:text-2xl md:text-4xl font-bold tracking-[0.1em] md:tracking-[0.15em] uppercase text-[#d4af37]">
                             Assignments & Challenges
                         </h1>
@@ -421,7 +440,7 @@ export default function AssignmentandChallenges() {
                 </div>
 
                 {/* Filter & Search Controls */}
-                <div className="max-w-7xl w-full px-3 sm:px-4 md:px-6 mt-4 md:mt-10">
+                <div className="w-full px-4 md:px-10 mt-4 md:mt-10">
                     {/* Mobile: Search + Filter Toggle */}
                     <div className="md:hidden space-y-3">
                         <div className="relative">
@@ -561,7 +580,7 @@ export default function AssignmentandChallenges() {
                 </div>
 
                 {/* Task List - Desktop: Table, Mobile: Cards */}
-                <div className="max-w-7xl w-full px-3 sm:px-4 md:px-6 py-4 md:py-6">
+                <div className="w-full px-4 md:px-10 py-4 md:py-6">
                     {/* Desktop Table */}
                     <div className="hidden md:block bg-[#292524] p-1 rounded-sm border border-[#44403c] shadow-lg">
                         <div className="overflow-x-auto">
@@ -883,7 +902,7 @@ export default function AssignmentandChallenges() {
                 )}
 
                 {/* GRADING MODAL */}
-                {gradingTask && <GradingModal task={gradingTask} onClose={handleCloseGrading} initialStudentId={preSelectedStudentId} />}
+                {gradingTask && <GradingModal task={gradingTask} onClose={handleCloseGrading} initialStudentId={preSelectedStudentId} userRole={userRole} />}
 
                 {/* DELETE CONFIRMATION MODAL */}
                 {isDeleteModalOpen && taskToDelete && (
@@ -922,9 +941,10 @@ export default function AssignmentandChallenges() {
 }
 
 // Grading Modal Component - Made Responsive
-function GradingModal({ task, onClose, initialStudentId }) {
+function GradingModal({ task, onClose, initialStudentId, userRole }) {
     const { showToast } = useToast();
-    const { gradebookData, loading, updateGrade } = useGradebook(task.id, task.section);
+    const sectionToFetch = userRole === 'admin' ? "all" : task.section;
+    const { gradebookData, loading, updateGrade } = useGradebook(task.id, sectionToFetch);
     const [grades, setScores] = useState({});
     const [selectedStudentId, setSelectedStudentId] = useState(null);
     const [studentSearchQuery, setStudentSearchQuery] = useState("");
@@ -1102,7 +1122,7 @@ function GradingModal({ task, onClose, initialStudentId }) {
                                                         <User size={14} />
                                                     </div>
                                                     <div>
-                                                        <p className="text-sm font-bold text-[#e7e5e4]">{item.student.firstName} {item.student.lastName}</p>
+                                                        <p className="text-sm font-bold text-[#e7e5e4]">{item.student.firstName} {item.student.lastName} <span className="text-[10px] text-[#a8a29e] opacity-60">({item.student.section})</span></p>
                                                         <StatusBadge status={item.status} />
                                                     </div>
                                                 </div>
@@ -1158,7 +1178,7 @@ function GradingModal({ task, onClose, initialStudentId }) {
                                                         <User size={16} />
                                                     </div>
                                                     <div>
-                                                        <p className="text-sm font-bold text-[#e7e5e4]">{item.student.firstName} {item.student.lastName}</p>
+                                                        <p className="text-sm font-bold text-[#e7e5e4]">{item.student.firstName} {item.student.lastName} <span className="text-[10px] text-[#a8a29e] opacity-60">({item.student.section})</span></p>
                                                         <StatusBadge status={item.status} />
                                                     </div>
                                                 </div>

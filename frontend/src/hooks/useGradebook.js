@@ -15,11 +15,13 @@ export default function useGradebook(taskId, sectionId) {
             try {
                 // 1. Fetch Students in Section (Master List)
                 // Assuming 'users' collection has a 'section' field and 'role' field
-                const studentsQuery = query(
-                    collection(db, "users"), 
-                    where("section", "==", sectionId),
-                    where("role", "==", "student")
-                );
+                const studentsQuery = sectionId === "all"
+                    ? query(collection(db, "users"), where("role", "==", "student"))
+                    : query(
+                        collection(db, "users"), 
+                        where("section", "==", sectionId),
+                        where("role", "==", "student")
+                    );
                 const studentsSnapshot = await getDocs(studentsQuery);
                 const students = studentsSnapshot.docs.map(doc => ({
                     uid: doc.id,

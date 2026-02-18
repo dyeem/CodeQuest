@@ -246,8 +246,8 @@ export default function UserManagement() {
     return (
         <div className="min-h-screen w-full flex flex-col bg-[#1c1917] text-[#e7e5e4] font-serif relative">
              {/* Header */}
-             <div className="w-full bg-[#0c0a09] border-b-4 border-[#292524] py-6 md:py-10 px-4 md:px-6 shadow-2xl sticky top-0 z-20">
-                <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+             <div className="w-full bg-[#0c0a09] border-b-4 border-[#292524] py-6 md:py-10 px-4 md:px-10 shadow-2xl sticky top-0 z-20">
+                <div className="w-full flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                     <div>
                         <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold tracking-[0.15em] uppercase text-[#d4af37]">
                             User Management
@@ -258,7 +258,7 @@ export default function UserManagement() {
             </div>
 
             {/* Content Container */}
-            <div className="max-w-7xl w-full mx-auto px-4 md:px-6 py-6 pb-24 md:py-10 md:pb-10">
+            <div className="w-full px-4 md:px-10 py-6 pb-24 md:py-10 md:pb-10">
                 
                 {/* Desktop: Add User Button (Top Right) */}
                 <div className="hidden md:flex justify-end mb-6">

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { User, Target, BookCheck, Star, ScrollText, FileText } from "lucide-react";
+import { User, Target, BookCheck, Star, ScrollText, FileText, MessageSquare, Eye, Calendar, ArrowRight } from "lucide-react";
 import bg from "../assets/dashboardbg.png"; 
 
 import CountUp from "../Components/animation/CountUp";
@@ -24,9 +24,10 @@ export default function Dashboard() {
     const navigate = useNavigate();
     const [stats, setStats] = useState({
         totalStudents: 0,
+        totalTeachers: 0,
         avgMastery: 0,
         totalAssignments: 0, 
-        totalXP: 0
+        totalStars: 0
     });
     const [chartData, setChartData] = useState({
         line: { xAxis: [], series: [] },
@@ -34,6 +35,8 @@ export default function Dashboard() {
         bar: { labels: [], values: [] },
         area: { labels: [], values: [] }
     });
+    const [recentFeedback, setRecentFeedback] = useState([]);
+    const [studentsData, setStudentsData] = useState([]);
     const [dataLoading, setDataLoading] = useState(true);
 
     useEffect(() => {
@@ -46,16 +49,40 @@ export default function Dashboard() {
         }
     }, [admin, loading, navigate]);
 
-    // Real-time listener for users collection
+    // Real-time listener for collections
     useEffect(() => {
         if (!loading && admin) {
             const usersCollection = collection(db, "users");
+            const adminsCollection = collection(db, "admins");
+            const tasksCollection = collection(db, "task");
+            const feedbackCollection = collection(db, "feedback");
+
+            // Listener for Teachers
+            const unsubscribeAdmins = onSnapshot(adminsCollection, (snapshot) => {
+                const teacherCount = snapshot.docs.filter(doc => doc.data().role !== 'admin').length;
+                setStats(prev => ({ ...prev, totalTeachers: teacherCount }));
+            });
+
+            // Listener for Assignments
+            const unsubscribeTasks = onSnapshot(tasksCollection, (snapshot) => {
+                setStats(prev => ({ ...prev, totalAssignments: snapshot.size }));
+            });
+
+            // Listener for Feedback
+            const unsubscribeFeedback = onSnapshot(feedbackCollection, (snapshot) => {
+                const feedback = snapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                })).sort((a, b) => (b.submittedAt?.seconds || 0) - (a.submittedAt?.seconds || 0)).slice(0, 5);
+                setRecentFeedback(feedback);
+            });
             
-            const unsubscribe = onSnapshot(usersCollection, (snapshot) => {
+            const unsubscribeUsers = onSnapshot(usersCollection, (snapshot) => {
                 const students = snapshot.docs.map(doc => ({
                     id: doc.id,
                     ...doc.data()
                 }));
+                setStudentsData(students);
 
                 if (students.length === 0) {
                     setDataLoading(false);
@@ -64,9 +91,20 @@ export default function Dashboard() {
 
                 // 2. Calculate Dashboard Stats
                 const totalStudents = students.length;
-                const totalXP = students.reduce((acc, s) => acc + (s.stats?.totalXP || 0), 0);
+                const totalXP = students.reduce((acc, s) => acc + (s.stats?.currentXP || 0), 0);
                 
-                // Calculate Average Mastery across all 5 modules (max ~100 levels per module for simplicity in calc)
+                // Calculate Total Stars across all themes
+                const totalStars = students.reduce((acc, s) => {
+                    const adv = s.progression?.adventure || {};
+                    let studentStars = 0;
+                    ['arithmeticTower', 'syntaxValley', 'loopCanyon', 'jsLab', 'debuggingDungeon'].forEach(theme => {
+                        const themeStars = adv[theme]?.stars || {};
+                        studentStars += Object.values(themeStars).reduce((sum, val) => sum + (typeof val === 'number' ? val : 0), 0);
+                    });
+                    return acc + studentStars;
+                }, 0);
+                
+                // Calculate Average Mastery across all 5 modules
                 const avgMastery = Math.round(students.reduce((acc, s) => {
                     const p = s.progression || {};
                     const adv = p.adventure || {};
@@ -80,12 +118,12 @@ export default function Dashboard() {
                     return acc + (totalLevels / 500) * 100;
                 }, 0) / totalStudents) || 0;
 
-                setStats({
+                setStats(prev => ({
+                    ...prev,
                     totalStudents,
                     avgMastery,
-                    totalAssignments: 5, // Currently representing the 5 main Adventure Mode themes
-                    totalXP
-                });
+                    totalStars
+                }));
 
                 // 3. Prepare Chart Data
                 
@@ -99,14 +137,43 @@ export default function Dashboard() {
                     students.reduce((acc, s) => acc + (s.progression?.adventure?.debuggingDungeon?.highestLevelUnlocked || 0), 0) / totalStudents,
                 ];
 
-                // Pie Chart: Online Status
-                const onlineCount = students.filter(s => s.isOnline).length;
-                const offlineCount = totalStudents - onlineCount;
+                // Pie Chart: Theme Popularity (Total Progress per Theme)
+                const themePopularity = [
+                    { 
+                        value: students.reduce((acc, s) => acc + (s.progression?.adventure?.arithmeticTower?.highestLevelUnlocked || 0), 0), 
+                        name: "Arithmetic Tower" 
+                    },
+                    { 
+                        value: students.reduce((acc, s) => acc + (s.progression?.adventure?.syntaxValley?.highestLevelUnlocked || 0), 0), 
+                        name: "Syntax Valley" 
+                    },
+                    { 
+                        value: students.reduce((acc, s) => acc + (s.progression?.adventure?.loopCanyon?.highestLevelUnlocked || 0), 0), 
+                        name: "Loop Canyon" 
+                    },
+                    { 
+                        value: students.reduce((acc, s) => acc + (s.progression?.adventure?.jsLab?.highestLevelUnlocked || 0), 0), 
+                        name: "JS Lab" 
+                    },
+                    { 
+                        value: students.reduce((acc, s) => acc + (s.progression?.adventure?.debuggingDungeon?.highestLevelUnlocked || 0), 0), 
+                        name: "Debugging Dungeon" 
+                    },
+                ];
 
-                // Area Chart: Student Level Distribution (Grouped by 10s)
-                const levels = students.map(s => Math.floor((s.stats?.totalXP || 0) / 1000) + 1);
-                // Create buckets for levels (e.g., 1-10, 11-20) - actually, just sorting raw XP for the "Mana Curve" visual is fine for now
-                const sortedXP = students.map(s => s.stats?.totalXP || 0).sort((a, b) => a - b);
+                // Area Chart: Student XP Distribution Histogram
+                const xpRanges = ["0-1k", "1k-3k", "3k-5k", "5k-8k", "8k-10k", "10k+"];
+                const xpDistribution = [0, 0, 0, 0, 0, 0];
+                
+                students.forEach(s => {
+                    const xp = s.stats?.currentXP || 0;
+                    if (xp < 1000) xpDistribution[0]++;
+                    else if (xp < 3000) xpDistribution[1]++;
+                    else if (xp < 5000) xpDistribution[2]++;
+                    else if (xp < 8000) xpDistribution[3]++;
+                    else if (xp < 10000) xpDistribution[4]++;
+                    else xpDistribution[5]++;
+                });
                 
                 // Line Chart: Simulated Monthly Growth based on current total XP
                 const scaleFactor = totalXP / 100000 || 1; 
@@ -119,13 +186,10 @@ export default function Dashboard() {
                         labels: modules,
                         values: avgLevels.map(v => Math.round(v)) // Avg levels unlocked
                     },
-                    pie: [
-                        { value: onlineCount, name: "Online" },
-                        { value: offlineCount, name: "Offline" },
-                    ],
+                    pie: themePopularity,
                     area: {
-                        labels: students.map((_, i) => `S${i+1}`), // Simplified labels
-                        values: sortedXP
+                        labels: xpRanges,
+                        values: xpDistribution
                     },
                     line: {
                         xAxis: months,
@@ -143,7 +207,12 @@ export default function Dashboard() {
             });
 
             // Cleanup subscription on unmount
-            return () => unsubscribe();
+            return () => {
+                unsubscribeAdmins();
+                unsubscribeTasks();
+                unsubscribeUsers();
+                unsubscribeFeedback();
+            };
         }
     }, [admin, loading]);
 
@@ -164,9 +233,9 @@ export default function Dashboard() {
 
             <div className="relative z-10 w-full">
                 {/* Banner */}
-                <div className="w-full bg-[#0c0a09] border-b-4 border-[#292524] py-8 md:py-12 px-4 md:px-6 shadow-2xl relative overflow-hidden">
+                <div className="w-full bg-[#0c0a09] border-b-4 border-[#292524] py-8 md:py-12 px-4 md:px-10 shadow-2xl relative overflow-hidden">
                     <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-[#d4af37] to-transparent opacity-50"></div>
-                    <div className="max-w-7xl mx-auto text-center">
+                    <div className="w-full text-center">
                         <h1 className="text-3xl md:text-5xl font-bold text-[#d4af37] tracking-widest uppercase mb-4 drop-shadow-md" style={{ textShadow: "2px 2px 0px #000" }}>
                             Admin Dashboard
                         </h1>
@@ -178,7 +247,7 @@ export default function Dashboard() {
                     </div>
                 </div>
                 
-                <div className="max-w-7xl mx-auto px-4 md:px-6 py-6 md:py-10 space-y-6 md:space-y-10">
+                <div className="w-full px-4 md:px-10 py-6 md:py-10 space-y-6 md:space-y-10">
                     
                     {/* Stats Grid */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
@@ -197,15 +266,16 @@ export default function Dashboard() {
                         <StatCard 
                             title="Total Assignments" 
                             count={stats.totalAssignments} 
-                            icon={<FileText size={32} className="text-[#a855f7]" />} 
+                            icon={<BookCheck size={32} className="text-[#a855f7]" />} 
                             suffix=""
-                            subtext="Active Modules"
+                            subtext="Both Section A and B"
                         />
                          <StatCard 
-                            title="Total XP Earned" 
-                            count={stats.totalXP} 
-                            icon={<Star size={32} className="text-[#fbbf24]" />} 
+                            title="Total Teachers" 
+                            count={stats.totalTeachers} 
+                            icon={<User size={32} className="text-[#fbbf24]" />} 
                             suffix=""
+                            subtext="Section A and B"
                         />
                     </div>
 
@@ -231,7 +301,7 @@ export default function Dashboard() {
                         <div className="bg-[#292524] rounded-sm shadow-[inset_0_0_20px_rgba(0,0,0,0.8)] border-2 border-[#44403c] p-1 relative">
                             <div className="bg-[#1c1917]/90 p-4 md:p-6 h-full backdrop-blur-sm">
                                  <h3 className="text-xl md:text-2xl font-bold text-[#e7e5e4] mb-6 border-b border-[#44403c] pb-2">
-                                    Student Status
+                                    Popular Themes
                                  </h3>
                                  <PieChart data={chartData.pie} />
                             </div>
@@ -258,6 +328,73 @@ export default function Dashboard() {
                         </div>
                     </div>
 
+                    {/* Recent Feedback Section */}
+                    <div className="bg-[#292524] rounded-sm shadow-[inset_0_0_20px_rgba(0,0,0,0.8)] border-2 border-[#44403c] p-1 relative mb-10">
+                        <div className="bg-[#1c1917]/90 p-4 md:p-8 h-full backdrop-blur-sm">
+                            <div className="flex justify-between items-center mb-6 border-b border-[#44403c] pb-4">
+                                <h3 className="text-xl md:text-2xl font-bold text-[#e7e5e4] flex items-center gap-3">
+                                    <MessageSquare className="text-[#d4af37]" size={24}/>
+                                    Recent Student Feedback
+                                </h3>
+                                <button 
+                                    onClick={() => navigate("/feedback")}
+                                    className="text-[#d4af37] hover:text-[#e8dcc0] transition-colors text-sm font-bold uppercase tracking-widest flex items-center gap-2 group"
+                                >
+                                    View All
+                                    <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
+                                </button>
+                            </div>
+
+                            <div className="space-y-4">
+                                {recentFeedback.length > 0 ? (
+                                    recentFeedback.map((item) => {
+                                        const user = studentsData.find(s => s.id === item.uid) || {};
+                                        return (
+                                            <div key={item.id} className="bg-[#0c0a09] border border-[#292524] p-4 rounded-sm flex flex-col md:flex-row md:items-center justify-between gap-4 hover:border-[#44403c] transition-colors group">
+                                                <div className="flex items-center gap-4">
+                                                    <div className="h-10 w-10 rounded-full border border-[#44403c] bg-[#1c1917] overflow-hidden flex-shrink-0 flex items-center justify-center">
+                                                        {user.avatarUrl || user.photoURL ? (
+                                                            <img src={user.avatarUrl || user.photoURL} alt="User" className="h-full w-full object-cover" />
+                                                        ) : (
+                                                            <User size={18} className="text-[#57534e]" />
+                                                        )}
+                                                    </div>
+                                                    <div>
+                                                        <div className="flex items-center gap-2">
+                                                            <p className="text-[#e7e5e4] font-bold text-sm">
+                                                                {user.displayName || (user.firstName ? `${user.firstName} ${user.lastName}` : "Unknown User")}
+                                                            </p>
+                                                            <span className={`text-[10px] px-2 py-0.5 rounded-full border uppercase font-bold ${item.type === 'Bug' ? 'bg-[#7f1d1d]/20 border-[#ef4444]/50 text-[#ef4444]' : 'bg-[#1e3a8a]/20 border-[#3b82f6]/50 text-[#3b82f6]'}`}>
+                                                                {item.type}
+                                                            </span>
+                                                        </div>
+                                                        <p className="text-[#a8a29e] text-xs line-clamp-1 italic mt-1">"{item.details}"</p>
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center justify-between md:justify-end gap-6">
+                                                    <span className="text-[10px] text-[#57534e] font-mono flex items-center gap-1">
+                                                        <Calendar size={12} />
+                                                        {item.submittedAt ? new Date(item.submittedAt.toDate()).toLocaleDateString() : "Unknown"}
+                                                    </span>
+                                                    <button 
+                                                        onClick={() => navigate("/feedback")}
+                                                        className="p-2 bg-[#1c1917] border border-[#292524] rounded text-[#a8a29e] hover:text-[#d4af37] hover:border-[#d4af37] transition-all"
+                                                        title="View in Feedback Page"
+                                                    >
+                                                        <Eye size={16} />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        );
+                                    })
+                                ) : (
+                                    <div className="text-center py-10 border-2 border-dashed border-[#292524] rounded-sm">
+                                        <p className="text-[#57534e] italic">No recent feedback recorded in the scrolls.</p>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

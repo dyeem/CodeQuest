@@ -191,8 +191,8 @@ export default function Profile() {
     return (
         <div className="font-serif min-h-screen w-full flex flex-col items-center bg-[#1c1917] text-[#e7e5e4]">
             {/* Header */}
-            <div className="w-full bg-[#0c0a09] border-b-4 border-[#292524] py-6 md:py-10 px-4 md:px-6 shadow-2xl">
-                <div className="max-w-6xl mx-auto">
+            <div className="w-full bg-[#0c0a09] border-b-4 border-[#292524] py-6 md:py-10 px-4 md:px-10 shadow-2xl">
+                <div className="w-full">
                     <h1 className="text-2xl md:text-4xl font-bold tracking-[0.15em] uppercase text-[#d4af37]">
                         Profile Settings
                     </h1>
@@ -200,7 +200,7 @@ export default function Profile() {
                 </div>
             </div>
 
-            <div className="max-w-6xl w-full px-4 md:px-6 py-6 md:py-12">
+            <div className="w-full px-4 md:px-10 py-6 md:py-12">
                 <form onSubmit={handleSave} className="flex flex-col lg:flex-row gap-6 md:gap-12 items-start">
                     
                     {/* Left Column: Avatar Upload */}

@@ -26,7 +26,7 @@ export default function AdminLayout() {
                 <Navbar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} /> 
                 
                 {/* Main Content Area */}
-                <div className={`flex-1 flex flex-col transition-all duration-300 ${isSidebarOpen ? 'ml-0' : 'ml-0 md:ml-64'} pt-16 md:pt-0`}>
+                <div className={`flex-1 flex flex-col transition-all duration-300 ${isSidebarOpen ? 'ml-0' : 'ml-0 md:ml-80'} pt-16 md:pt-0`}>
                     <main className="flex-1 overflow-x-hidden bg-[#1c1917]">
                         <Outlet />
                     </main>

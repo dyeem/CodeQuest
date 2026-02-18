@@ -135,9 +135,9 @@ export default function Feedback() {
 
             <div className="w-full flex flex-col items-center relative z-10">
                 {/* Header */}
-                <div className="w-full bg-[#0c0a09] border-b-2 md:border-b-4 border-[#292524] py-6 sm:py-8 md:py-12 px-4 md:px-6 shadow-2xl relative overflow-hidden">
+                <div className="w-full bg-[#0c0a09] border-b-2 md:border-b-4 border-[#292524] py-6 sm:py-8 md:py-12 px-4 md:px-10 shadow-2xl relative overflow-hidden">
                     <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/dark-matter.png')] opacity-30"></div>
-                    <div className="max-w-7xl mx-auto text-center relative z-10">
+                    <div className="w-full text-center relative z-10">
                         <h1 className="text-2xl sm:text-3xl md:text-5xl font-bold tracking-[0.1em] md:tracking-[0.15em] uppercase text-[#d4af37] drop-shadow-[0_4px_4px_rgba(0,0,0,0.8)]" style={{ textShadow: "2px 2px 0px #000" }}>
                             User Feedback
                         </h1>
@@ -147,7 +147,7 @@ export default function Feedback() {
                     </div>
                 </div>
 
-                <div className="max-w-7xl mx-auto w-full px-3 sm:px-4 md:px-6 py-4 md:py-10">
+                <div className="w-full px-4 md:px-10 py-4 md:py-10">
                     
                     {/* Filters */}
                     <div className="bg-[#292524] p-1 rounded-sm border border-[#44403c] shadow-lg mb-8">
